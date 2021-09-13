@@ -51,7 +51,6 @@
     <Compile Include="BufferedNetworkStream.cs" />
     <Compile Include="IocpReadWriteResult.cs" />
     <Compile Include="ISocketBasedStream.cs" />
-    <Compile Include="TcpReadWriteResult.cs" />
     <Compile Include="AsyncResult.cs" />
     <Compile Include="IocpNetworkStream.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

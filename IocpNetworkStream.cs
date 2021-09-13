@@ -63,8 +63,7 @@ namespace IocpSharp
 
             try
             {
-
-                e.BeginRead(Socket, buffer, offset, size, AfterRead, new ReadWriteArgs(e, asyncResult));
+                e.ReadAsync(Socket, buffer, offset, size, AfterRead, new ReadWriteArgs(e, asyncResult));
 
                 return asyncResult;
             }
@@ -85,25 +84,22 @@ namespace IocpSharp
         /// <summary>
         /// 基础流读取到数据后
         /// </summary>
-        /// <param name="asyncResult"></param>
-        private void AfterRead(IAsyncResult asyncResult)
+        /// <param name="bytesReceived"></param>
+        /// <param name="errorCode"></param>
+        /// <param name="state"></param>
+        private void AfterRead(int bytesReceived, int errorCode, object state)
         {
-            ReadWriteArgs args = asyncResult.AsyncState as ReadWriteArgs;
+            ReadWriteArgs args = state as ReadWriteArgs;
             IocpReadWriteResult result = args.AsyncResult;
-            try
+            if (errorCode != 0)
             {
-                int rec = args.TcpSocketAsyncEventArgs.EndRead(asyncResult);
-                result.BytesTransfered = rec;
-                result.CallUserCallback();
-            }
-            catch (Exception ex)
-            {
-                result.SetFailed(ex);
-            }
-            finally
-            {
+                result.SetFailed(new SocketException(errorCode));
                 TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
+                return;
             }
+            result.BytesTransfered = bytesReceived;
+            result.CallUserCallback();
+            TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
         }
 
         /// <summary>
@@ -138,7 +134,7 @@ namespace IocpSharp
             IocpReadWriteResult asyncResult = new IocpReadWriteResult(callback, state, buffer, offset, size);
             try
             {
-                e.BeginWrite(Socket, buffer, offset, size, AfterWrite, new ReadWriteArgs(e, asyncResult));
+                e.WriteAsync(Socket, buffer, offset, size, AfterWrite, new ReadWriteArgs(e, asyncResult));
 
                 return asyncResult;
             }
@@ -159,24 +155,20 @@ namespace IocpSharp
         /// <summary>
         /// 基础流写入后
         /// </summary>
-        /// <param name="asyncResult"></param>
-        private void AfterWrite(IAsyncResult asyncResult)
+        /// <param name="errorCode"></param>
+        /// <param name="state"></param>
+        private void AfterWrite(int errorCode, object state)
         {
-            ReadWriteArgs args = asyncResult.AsyncState as ReadWriteArgs;
+            ReadWriteArgs args = state as ReadWriteArgs;
             IocpReadWriteResult result = args.AsyncResult;
-            try
+            if (errorCode != 0)
             {
-                args.TcpSocketAsyncEventArgs.EndWrite(asyncResult);
-                result.CallUserCallback();
-            }
-            catch (Exception ex)
-            {
-                result.SetFailed(ex);
-            }
-            finally
-            {
+                result.SetFailed(new SocketException(errorCode));
                 TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
+                return;
             }
+            result.CallUserCallback();
+            TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
         }
 
         /// <summary>

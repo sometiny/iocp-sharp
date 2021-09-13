@@ -10,11 +10,29 @@ using System.Collections.Concurrent;
 namespace IocpSharp
 {
     /// <summary>
+    /// 异步读取的委托
+    /// </summary>
+    /// <param name="bytesReceived">接收到的字节数</param>
+    /// <param name="errorCode">错误代码</param>
+    /// <param name="state">用户状态</param>
+    public delegate void AsyncReadCallback(int bytesReceived, int errorCode, object state);
+
+    /// <summary>
+    /// 异步写入的委托
+    /// </summary>
+    /// <param name="errorCode">错误代码</param>
+    /// <param name="state">用户状态</param>
+    public delegate void AsyncWriteCallback(int errorCode, object state);
+
+    /// <summary>
     /// TcpSocketAsyncEventArgs类用于数据的异步读写，不需要事件，直接内部重写OnCompleted方法。
-    /// 异步读写BeginWrite、EndWrite、BeginRead、EndRead专用，不能用于Socket.ConnectAsync、Socket.ReceiveAsync、Socket.SendAsync等异步方法
+    /// 其实就是把事件封装到了回调。
     /// </summary>
     public class TcpSocketAsyncEventArgs : SocketAsyncEventArgs
     {
+
+        private AsyncReadCallback _asyncReadCallback = null;
+        private AsyncWriteCallback _asyncWriteCallback = null;
         /// <summary>
         /// 重写SocketAsyncEventArgs的OnCompleted方法
         /// 实现我们自己的逻辑
@@ -22,19 +40,21 @@ namespace IocpSharp
         /// <param name="e"></param>
         protected override void OnCompleted(SocketAsyncEventArgs e)
         {
-            if (UserToken is not TcpReadWriteResult asyncResult) throw new InvalidOperationException("asyncResult");
-
-            if (e.SocketError != SocketError.Success)
+            if(e.LastOperation == SocketAsyncOperation.Receive && _asyncReadCallback != null)
             {
-                asyncResult.SetFailed(new SocketException((int)e.SocketError));
+                _asyncReadCallback(e.BytesTransferred, (int)e.SocketError, UserToken);
                 return;
             }
-            asyncResult.BytesTransfered = e.BytesTransferred;
-            asyncResult.CallUserCallback();
+            if (e.LastOperation == SocketAsyncOperation.Send && _asyncWriteCallback != null)
+            {
+                _asyncWriteCallback((int)e.SocketError, UserToken);
+                return;
+            }
+            base.OnCompleted(e);
         }
 
         /// <summary>
-        /// 开始异步读取数据
+        /// 异步读取数据
         /// </summary>
         /// <param name="socket">基础Socket</param>
         /// <param name="buffer">缓冲区</param>
@@ -43,38 +63,19 @@ namespace IocpSharp
         /// <param name="callback">回调</param>
         /// <param name="state">状态</param>
         /// <returns></returns>
-        public IAsyncResult BeginRead(Socket socket, byte[] buffer, int offset, int size, AsyncCallback callback, object state)
+        public void ReadAsync(Socket socket, byte[] buffer, int offset, int size, AsyncReadCallback callback, object state)
         {
-            TcpReadWriteResult asyncResult = new TcpReadWriteResult(callback, state, buffer, offset, size);
-            UserToken = asyncResult;
+            _asyncReadCallback = callback;
+            UserToken = state;
             SetBuffer(buffer, offset, size);
             if (!socket.ReceiveAsync(this))
             {
                 OnCompleted(this);
             }
-            return asyncResult;
         }
 
         /// <summary>
-        /// 结束异步读取数据
-        /// </summary>
-        /// <param name="asyncResult"></param>
-        /// <returns>读取的字节数</returns>
-        public int EndRead(IAsyncResult asyncResult)
-        {
-            if (asyncResult is not TcpReadWriteResult result) throw new InvalidOperationException("asyncResult");
-
-            if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
-
-            if (result.Exception != null) throw result.Exception;
-
-            return result.BytesTransfered;
-        }
-
-
-
-        /// <summary>
-        /// 开始异步发送数据
+        /// 异步发送数据
         /// </summary>
         /// <param name="socket">基础Socket</param>
         /// <param name="buffer">缓冲区</param>
@@ -83,33 +84,16 @@ namespace IocpSharp
         /// <param name="callback">回调</param>
         /// <param name="state">状态</param>
         /// <returns></returns>
-        public IAsyncResult BeginWrite(Socket socket, byte[] buffer, int offset, int size, AsyncCallback callback, object state)
+        public void WriteAsync(Socket socket, byte[] buffer, int offset, int size, AsyncWriteCallback callback, object state)
         {
-            TcpReadWriteResult asyncResult = new TcpReadWriteResult(callback, state, buffer, offset, size);
-            UserToken = asyncResult;
+            _asyncWriteCallback = callback;
+            UserToken = state;
             SetBuffer(buffer, offset, size);
             if (!socket.SendAsync(this))
             {
                 OnCompleted(this);
             }
-            return asyncResult;
         }
-
-        /// <summary>
-        /// 结束异步发送数据
-        /// </summary>
-        /// <param name="asyncResult"></param>
-        /// <returns></returns>
-        public void EndWrite(IAsyncResult asyncResult)
-        {
-            if (asyncResult is not TcpReadWriteResult result) throw new InvalidOperationException("asyncResult");
-
-            if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
-
-            if (result.Exception != null) throw result.Exception;
-        }
-
-
 
         private static ConcurrentStack<TcpSocketAsyncEventArgs> _stacks = new ConcurrentStack<TcpSocketAsyncEventArgs>();
 
@@ -132,6 +116,8 @@ namespace IocpSharp
         /// <param name="e"></param>
         public static void Push(TcpSocketAsyncEventArgs e)
         {
+            e._asyncReadCallback = null;
+            e._asyncWriteCallback = null;
             e.SetBuffer(null, 0, 0);
             e.UserToken = null;
             _stacks.Push(e);
