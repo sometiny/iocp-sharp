@@ -12,6 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -46,8 +47,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BufferedReadResult.cs" />
+    <Compile Include="BufferedNetworkStream.cs" />
+    <Compile Include="IocpReadWriteResult.cs" />
+    <Compile Include="TcpReadWriteResult.cs" />
+    <Compile Include="AsyncResult.cs" />
+    <Compile Include="IocpNetworkStream.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TcpIocpServer.cs" />
+    <Compile Include="TcpSocketEventargs.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
