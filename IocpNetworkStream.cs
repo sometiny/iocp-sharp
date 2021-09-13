@@ -8,8 +8,16 @@ using System.Net.Sockets;
 
 namespace IocpSharp
 {
-    public class IocpNetworkStream : NetworkStream
+    /// <summary>
+    /// 使用TcpSocketAsyncEventArgs实现的IOCP异步读写的NetworkStream
+    /// </summary>
+    public class IocpNetworkStream : NetworkStream, ISocketBasedStream
     {
+        /// <summary>
+        /// 获取基础Socket
+        /// </summary>
+        public Socket BaseSocket => Socket;
+
         private class ReadWriteArgs
         {
             public TcpSocketAsyncEventArgs TcpSocketAsyncEventArgs;
