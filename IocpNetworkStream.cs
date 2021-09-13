@@ -58,6 +58,7 @@ namespace IocpSharp
         /// <returns></returns>
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
+            //Console.WriteLine("IocpNetworkStream.BeginRead");
             //从栈中弹出一个TcpSocketAsyncEventArgs用来读取数据
             TcpSocketAsyncEventArgs e = TcpSocketAsyncEventArgs.Pop();
 
@@ -149,6 +150,7 @@ namespace IocpSharp
         /// <returns></returns>
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
+            //Console.WriteLine("IocpNetworkStream.BeginWrite");
             TcpSocketAsyncEventArgs e = TcpSocketAsyncEventArgs.Pop();
 
             IocpReadWriteResult asyncResult = new IocpReadWriteResult(callback, state, buffer, offset, size);

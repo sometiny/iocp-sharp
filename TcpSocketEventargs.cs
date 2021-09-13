@@ -65,6 +65,7 @@ namespace IocpSharp
         /// <returns></returns>
         public void ReadAsync(Socket socket, byte[] buffer, int offset, int size, AsyncReadCallback callback, object state)
         {
+            //Console.WriteLine("TcpSocketAsyncEventArgs.ReadAsync");
             _asyncReadCallback = callback;
             UserToken = state;
             SetBuffer(buffer, offset, size);
@@ -86,6 +87,7 @@ namespace IocpSharp
         /// <returns></returns>
         public void WriteAsync(Socket socket, byte[] buffer, int offset, int size, AsyncWriteCallback callback, object state)
         {
+            //Console.WriteLine("TcpSocketAsyncEventArgs.WriteAsync");
             _asyncWriteCallback = callback;
             UserToken = state;
             SetBuffer(buffer, offset, size);
