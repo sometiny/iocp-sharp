@@ -58,11 +58,17 @@ namespace IocpSharp
         /// <returns></returns>
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
+            //从栈中弹出一个TcpSocketAsyncEventArgs用来读取数据
             TcpSocketAsyncEventArgs e = TcpSocketAsyncEventArgs.Pop();
+
+            //实现一个IAsyncResult
             IocpReadWriteResult asyncResult = new IocpReadWriteResult(callback, state, buffer, offset, size);
 
             try
             {
+                //读取数据，完成后调用回调函数AfterRead
+                //将TcpSocketAsyncEventArgs和IocpReadWriteResult传递给回调函数。
+                //ReadWriteArgs是一个简单的封装，保存上面两个参数。
                 e.ReadAsync(Socket, buffer, offset, size, AfterRead, new ReadWriteArgs(e, asyncResult));
 
                 return asyncResult;
@@ -70,12 +76,15 @@ namespace IocpSharp
             catch(SocketException ex)
             {
                 asyncResult.SetFailed(ex);
+
+                //回收TcpSocketAsyncEventArgs
                 TcpSocketAsyncEventArgs.Push(e);
                 return asyncResult;
             }
             catch
             {
                 asyncResult.Dispose();
+                //回收TcpSocketAsyncEventArgs
                 TcpSocketAsyncEventArgs.Push(e);
                 throw;
             }
@@ -91,14 +100,20 @@ namespace IocpSharp
         {
             ReadWriteArgs args = state as ReadWriteArgs;
             IocpReadWriteResult result = args.AsyncResult;
+
             if (errorCode != 0)
             {
+                //如果IOCP返回了错误代码，设置IAsyncResult为失败状态
                 result.SetFailed(new SocketException(errorCode));
-                TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
-                return;
             }
-            result.BytesTransfered = bytesReceived;
-            result.CallUserCallback();
+            else
+            {
+                //成功读取数据，反馈给IAsyncResult
+                result.BytesTransfered = bytesReceived;
+                result.CallUserCallback();
+            }
+
+            //回收TcpSocketAsyncEventArgs
             TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
         }
 
@@ -111,15 +126,20 @@ namespace IocpSharp
         {
             if (asyncResult is not IocpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
+            //如果同步调用了EndRead，等待IAsyncResult完成
+            //不建议同步调用。
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
+            //失败，抛出异常
             if (result.Exception != null) throw result.Exception;
 
+            //返回读取到的数据
             return result.BytesTransfered;
         }
 
         /// <summary>
         /// 实现异步IOCP写入数据
+        /// 理解逻辑跟BeginWrite一样，就不多写注释了。
         /// </summary>
         /// <param name="buffer">缓冲区</param>
         /// <param name="offset">数据在缓冲区的位置</param>
@@ -164,10 +184,12 @@ namespace IocpSharp
             if (errorCode != 0)
             {
                 result.SetFailed(new SocketException(errorCode));
-                TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
-                return;
             }
-            result.CallUserCallback();
+            else
+            {
+                result.CallUserCallback();
+                TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
+            }
             TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
         }
 

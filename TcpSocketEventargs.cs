@@ -96,8 +96,6 @@ namespace IocpSharp
         }
 
         private static ConcurrentStack<TcpSocketAsyncEventArgs> _stacks = new ConcurrentStack<TcpSocketAsyncEventArgs>();
-
-        public static int InstanceCount => _stacks.Count();
         /// <summary>
         /// 从栈中获取一个TcpSocketAsyncEventArgs实例
         /// 对TcpSocketAsyncEventArgs实例的重复使用
