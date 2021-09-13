@@ -10,7 +10,8 @@ using System.Collections.Concurrent;
 namespace IocpSharp
 {
     /// <summary>
-    /// TcpSocketAsyncEventArgs类用于数据的异步读写，不需要事件，直接内部重写OnCompleted方法
+    /// TcpSocketAsyncEventArgs类用于数据的异步读写，不需要事件，直接内部重写OnCompleted方法。
+    /// 异步读写BeginWrite、EndWrite、BeginRead、EndRead专用，不能用于Socket.ConnectAsync、Socket.ReceiveAsync、Socket.SendAsync等异步方法
     /// </summary>
     public class TcpSocketAsyncEventArgs : SocketAsyncEventArgs
     {
@@ -120,6 +121,7 @@ namespace IocpSharp
         public static int InstanceCount => _stacks.Count();
         /// <summary>
         /// 从栈中获取一个TcpSocketAsyncEventArgs实例
+        /// 对TcpSocketAsyncEventArgs实例的重复使用
         /// </summary>
         /// <returns></returns>
         public static TcpSocketAsyncEventArgs Pop()
