@@ -47,15 +47,43 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BufferedReadResult.cs" />
-    <Compile Include="BufferedNetworkStream.cs" />
-    <Compile Include="IocpReadWriteResult.cs" />
-    <Compile Include="ISocketBasedStream.cs" />
-    <Compile Include="AsyncResult.cs" />
-    <Compile Include="IocpNetworkStream.cs" />
+    <Compile Include="src\core\BufferedReadResult.cs" />
+    <Compile Include="src\core\BufferedNetworkStream.cs" />
+    <Compile Include="src\core\IocpReadWriteResult.cs" />
+    <Compile Include="src\core\ISocketBasedStream.cs" />
+    <Compile Include="src\core\AsyncResult.cs" />
+    <Compile Include="src\core\IocpNetworkStream.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TcpIocpServer.cs" />
-    <Compile Include="TcpSocketEventargs.cs" />
+    <Compile Include="src\Http\HttpRequest.cs" />
+    <Compile Include="src\Http\HttpResponse.cs" />
+    <Compile Include="src\Http\HttpResponser.cs" />
+    <Compile Include="src\Http\HttpServerBase.cs" />
+    <Compile Include="src\Http\Responsers\ChunkedResponser.cs" />
+    <Compile Include="src\Http\Streams\ChunkedReadStream.cs" />
+    <Compile Include="src\Http\Streams\ChunkedWriteStream.cs" />
+    <Compile Include="src\Http\Streams\ContentedReadStream.cs" />
+    <Compile Include="src\Http\Streams\ContentedWriteStream.cs" />
+    <Compile Include="src\Http\Streams\MultipartReadStream.cs" />
+    <Compile Include="src\Http\Utils\BoyerMoore.cs" />
+    <Compile Include="src\Http\Utils\HttpHeaderProperty.cs" />
+    <Compile Include="src\Http\Utils\HttpMultipartFormDataParser.cs" />
+    <Compile Include="src\Http\Utils\HttpRequestException.cs" />
+    <Compile Include="src\Http\Utils\HttpStatus.cs" />
+    <Compile Include="src\Http\Utils\HttpUtility.cs" />
+    <Compile Include="src\Http\Utils\MimeTypes.cs" />
+    <Compile Include="src\StreamUtils.cs" />
+    <Compile Include="src\WebSocket\Frame.cs" />
+    <Compile Include="src\WebSocket\FrameReadStream.cs" />
+    <Compile Include="src\WebSocket\Frames\CloseFrame.cs" />
+    <Compile Include="src\WebSocket\Frames\PingFrame.cs" />
+    <Compile Include="src\WebSocket\Frames\PongFrame.cs" />
+    <Compile Include="src\WebSocket\Frames\TextFrame.cs" />
+    <Compile Include="src\WebSocket\FrameWriteStream.cs" />
+    <Compile Include="src\WebSocket\Messager.cs" />
+    <Compile Include="src\WebSocket\MultipartFrameReadStream.cs" />
+    <Compile Include="src\WebSocket\ProtocolUtils.cs" />
+    <Compile Include="src\core\TcpIocpServer.cs" />
+    <Compile Include="src\core\TcpSocketEventargs.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
