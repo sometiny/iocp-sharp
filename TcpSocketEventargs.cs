@@ -22,8 +22,7 @@ namespace IocpSharp
         /// <param name="e"></param>
         protected override void OnCompleted(SocketAsyncEventArgs e)
         {
-            TcpReadWriteResult asyncResult = UserToken as TcpReadWriteResult;
-            if (asyncResult == null) throw new InvalidOperationException("asyncResult");
+            if (UserToken is not TcpReadWriteResult asyncResult) throw new InvalidOperationException("asyncResult");
 
             if (e.SocketError != SocketError.Success)
             {
@@ -63,9 +62,7 @@ namespace IocpSharp
         /// <returns>读取的字节数</returns>
         public int EndRead(IAsyncResult asyncResult)
         {
-            TcpReadWriteResult result = asyncResult as TcpReadWriteResult;
-
-            if (result == null) throw new InvalidOperationException("asyncResult");
+            if (asyncResult is not TcpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
@@ -105,9 +102,7 @@ namespace IocpSharp
         /// <returns></returns>
         public void EndWrite(IAsyncResult asyncResult)
         {
-            TcpReadWriteResult result = asyncResult as TcpReadWriteResult;
-
-            if (result == null) throw new InvalidOperationException("asyncResult");
+            if (asyncResult is not TcpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 

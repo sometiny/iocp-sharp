@@ -113,9 +113,7 @@ namespace IocpSharp
         /// <returns>读取数据的大小</returns>
         public override int EndRead(IAsyncResult asyncResult)
         {
-            using IocpReadWriteResult result = asyncResult as IocpReadWriteResult;
-
-            if (result == null) throw new InvalidOperationException("asyncResult");
+            if (asyncResult is not IocpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
@@ -188,9 +186,7 @@ namespace IocpSharp
         /// <returns>读取数据的大小</returns>
         public override void EndWrite(IAsyncResult asyncResult)
         {
-            using IocpReadWriteResult result = asyncResult as IocpReadWriteResult;
-
-            if (result == null) throw new InvalidOperationException("asyncResult");
+            if (asyncResult is not IocpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
