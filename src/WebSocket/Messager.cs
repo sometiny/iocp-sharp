@@ -47,18 +47,18 @@ namespace IocpSharp.WebSocket
         /// <summary>
         /// 客户端连接进来
         /// </summary>
-        protected virtual void OnConnected() {}
+        protected virtual void OnConnected() { }
 
         /// <summary>
         /// 客户端断开
         /// </summary>
-        protected virtual void OnDisconnected() {}
+        protected virtual void OnDisconnected() { }
 
         /// <summary>
         /// 接收到文本消息
         /// </summary>
         /// <param name="payload">文本内容</param>
-        protected virtual void OnText(string payload) {}
+        protected virtual void OnText(string payload) { }
 
         /// <summary>
         /// 接收帧，不建议在重载方法中写收发逻辑，仅调试用。
@@ -70,7 +70,7 @@ namespace IocpSharp.WebSocket
         /// 接收到二进制消息
         /// </summary>
         /// <param name="inputStream">二进制输入流</param>
-        protected virtual void OnBinary(Stream inputStream){}
+        protected virtual void OnBinary(Stream inputStream) { }
 
         /// <summary>
         /// 发送关闭帧给客户端
