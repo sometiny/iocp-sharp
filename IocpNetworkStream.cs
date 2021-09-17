@@ -190,7 +190,6 @@ namespace IocpSharp
             else
             {
                 result.CallUserCallback();
-                TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
             }
             TcpSocketAsyncEventArgs.Push(args.TcpSocketAsyncEventArgs);
         }
