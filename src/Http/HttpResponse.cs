@@ -8,16 +8,11 @@ using System.Collections.Specialized;
 
 namespace IocpSharp.Http
 {
-    public class HttpResponse
+    public class HttpResponse : HttpMessage
     {
 
         private int _statusCode = 200;
         private string _statusText = "OK";
-        private string _httpProtocol = null;
-
-        private NameValueCollection _headers = new NameValueCollection();
-
-        public NameValueCollection Headers => _headers;
 
         public int StatusCode { 
             get => _statusCode; 
@@ -32,48 +27,49 @@ namespace IocpSharp.Http
             }
         }
 
-        internal HttpResponse() { }
-
+        internal HttpResponse(Stream baseStream) : base(baseStream) { }
         /// <summary>
         /// 使用状态码和协议实例化一个HttpResponse类
         /// </summary>
         /// <param name="statusCode">状态码，200、400等</param>
         /// <param name="httpProtocol">协议，默认用HTTP/1.1</param>
-        public HttpResponse(int statusCode, string httpProtocol = "HTTP/1.1")
+        public HttpResponse(int statusCode, string httpProtocol = "HTTP/1.1"): base(httpProtocol)
         {
             StatusCode = statusCode;
-            _httpProtocol = httpProtocol;
         }
-
-        /// <summary>
-        /// 添加响应头
-        /// </summary>
-        /// <param name="name">名称</param>
-        /// <param name="value">值</param>
-        public void AddHeader(string name, string value)
+        protected override void ParseFirstLine(string line)
         {
-            _headers.Add(name, value);
+            int idx = line.IndexOf(' '), idx2 = 0;
+            if (idx <= 0 || idx >= line.Length - 1)
+            {
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+            }
+            HttpProtocol = line.Substring(0, idx);
+            idx2 = line.IndexOf(' ', idx + 1);
+            if (idx2 <= 0 || idx2 >= line.Length - 1)
+            {
+                if (!int.TryParse(line.Substring(idx + 1), out _statusCode))
+                {
+                    throw new HttpHeaderException(HttpHeaderError.StatusCodeNotWellFormed);
+                }
+                _statusText = HttpStatus.GetStatus(_statusCode);
+                return;
+            }
+            _statusText = line.Substring(idx2 + 1);
+
+            string code = line.Substring(idx + 1, idx2 - idx - 1);
+
+            if (!int.TryParse(code, out _statusCode))
+            {
+                throw new HttpHeaderException(HttpHeaderError.StatusCodeNotWellFormed);
+            }
         }
 
-        /// <summary>
-        /// 设置响应头
-        /// </summary>
-        /// <param name="name">名称</param>
-        /// <param name="value">值</param>
-        public void SetHeader(string name, string value)
+        protected override string GetAllHeaders(StringBuilder sb)
         {
-            _headers.Set(name, value);
+            sb.AppendFormat("{0} {1} {2}\r\n", HttpProtocol, _statusCode, _statusText);
+            return base.GetAllHeaders(sb);
         }
-
-        /// <summary>
-        /// 删除响应头
-        /// </summary>
-        /// <param name="name">名称</param>
-        public void RemoveHeader(string name)
-        {
-            _headers.Remove(name);
-        }
-
 
         /// <summary>
         /// 获获取完整的响应头
@@ -81,23 +77,7 @@ namespace IocpSharp.Http
         /// <returns>完整响应头</returns>
         public string GetAllResponseHeaders()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("{0} {1} {2}\r\n", _httpProtocol, _statusCode, _statusText);
-
-            foreach (string name in _headers.Keys)
-            {
-                string[] values = _headers.GetValues(name);
-                if (values == null || values.Length == 0) continue;
-
-                foreach (string value in values)
-                {
-                    if (value == null) continue;
-                    sb.AppendFormat("{0}: {1}\r\n", name, value);
-                }
-            }
-            sb.Append("\r\n");
-
-            return sb.ToString();
+            return GetAllHeaders();
         }
     }
 }
