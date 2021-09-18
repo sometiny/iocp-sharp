@@ -14,6 +14,7 @@ namespace IocpSharp.Http.Streams
     {
         private Stream _innerStream = null;
         private bool _leaveInnerStreamOpen = true;
+        private bool _streamIsBuffered = false;
 
         /// <summary>
         /// 使用基础流和模式创建实例
@@ -24,6 +25,7 @@ namespace IocpSharp.Http.Streams
         {
             _innerStream = stream;
             _leaveInnerStreamOpen = leaveInnerStreamOpen;
+            _streamIsBuffered = _innerStream is BufferedNetworkStream;
         }
 
         /// <summary>
@@ -103,8 +105,8 @@ namespace IocpSharp.Http.Streams
         /// <returns></returns>
         private int InternalReadByte()
         {
-            //我们不能确定上层数据流是Buffered，在这里再封装一层缓冲区。
-            if (_innerStream is BufferedNetworkStream) return _innerStream.ReadByte();
+            //我们上层数据流是Buffered，直接使用上层数据流。
+            if (_streamIsBuffered) return _innerStream.ReadByte();
             if (_length == 0)
             {
                 if(_buffer == null) _buffer = new byte[32768];
