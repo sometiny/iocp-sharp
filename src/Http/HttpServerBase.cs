@@ -66,7 +66,7 @@ namespace IocpSharp.Http
                             //WebSocket处理异常，关闭基础流
                             stream.Close();
                         }
-                        return;
+                        break;
                     }
 
                     //尝试查找路由，不存在的话使用NotFound路由
@@ -100,12 +100,8 @@ namespace IocpSharp.Http
                     OnServerError(stream, $"请求异常：{e}");
                     break;
                 }
-                finally
-                {
-                    //始终释放请求
-                    request?.Dispose();
-                }
             }
+            request?.Dispose();
             stream.Close();
         }
 

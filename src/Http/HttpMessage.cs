@@ -358,8 +358,15 @@ namespace IocpSharp.Http
 
         internal T Next<T>() where T : HttpMessage, new()
         {
-            EnsureEntityBodyRead();
-            return (_baseStream as HttpStream).Capture<T>();
+            try
+            {
+                EnsureEntityBodyRead();
+                return (_baseStream as HttpStream).Capture<T>();
+            }
+            finally
+            {
+                Dispose();
+            }
         }
 
         private bool _firstLineParsed = false;
