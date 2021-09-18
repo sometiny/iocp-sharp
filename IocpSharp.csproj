@@ -63,6 +63,7 @@
     <Compile Include="src\Http\Responsers\ChunkedResponser.cs" />
     <Compile Include="src\Http\Streams\ChunkedReadStream.cs" />
     <Compile Include="src\Http\Streams\ChunkedWriteStream.cs" />
+    <Compile Include="src\Http\Streams\HttpStream.cs" />
     <Compile Include="src\Http\Streams\ContentedReadStream.cs" />
     <Compile Include="src\Http\Streams\ContentedWriteStream.cs" />
     <Compile Include="src\Http\Streams\MultipartReadStream.cs" />

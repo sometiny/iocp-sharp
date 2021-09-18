@@ -22,6 +22,9 @@ namespace IocpSharp.Http
         public NameValueCollection Headers => _headers;
 
 
+        internal HttpMessage()
+        {
+        }
         internal HttpMessage(Stream baseStream)
         {
             _baseStream = baseStream;
@@ -30,6 +33,8 @@ namespace IocpSharp.Http
         {
             _httpProtocol = httpProtocol;
         }
+
+        internal Stream BaseStream { get => _baseStream; set => _baseStream = value; }
 
         /// <summary>
         /// 设置或获取Connection
@@ -158,7 +163,7 @@ namespace IocpSharp.Http
         /// 可以在Ready方法里面做更多事情
         /// 例如解析Host、ContentLength、ContentType、AcceptEncoding、Connection以及Range等请求头
         /// </summary>
-        protected virtual HttpMessage Ready()
+        internal virtual HttpMessage Ready()
         {
             _originHeaders += "\r\n";
 
@@ -351,6 +356,11 @@ namespace IocpSharp.Http
             }
         }
 
+        internal T Next<T>() where T : HttpMessage, new()
+        {
+            EnsureEntityBodyRead();
+            return (_baseStream as HttpStream).Capture<T>();
+        }
 
         private bool _firstLineParsed = false;
         /// <summary>

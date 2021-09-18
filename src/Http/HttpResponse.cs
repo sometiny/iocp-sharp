@@ -27,7 +27,8 @@ namespace IocpSharp.Http
             }
         }
 
-        internal HttpResponse(Stream baseStream) : base(baseStream) { }
+        public HttpResponse() : base() { }
+        public HttpResponse(Stream baseStream) : base(baseStream) { }
         /// <summary>
         /// 使用状态码和协议实例化一个HttpResponse类
         /// </summary>
@@ -78,6 +79,10 @@ namespace IocpSharp.Http
         public string GetAllResponseHeaders()
         {
             return GetAllHeaders();
+        }
+        public HttpResponse Next()
+        {
+            return Next<HttpResponse>();
         }
     }
 }

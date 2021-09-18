@@ -46,22 +46,22 @@ namespace IocpSharp.Http
 
         protected override void NewClient(Socket client)
         {
-            Stream stream = new BufferedNetworkStream(client, true);
+            HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
 
             //设置每个链接能处理的请求数
             int processedRequest = 0;
+            HttpRequest request = null;
             while (processedRequest < MaxRequestPerConnection)
             {
-                HttpRequest request = null;
                 try
                 {
                     //捕获一个HttpRequest
-                    request = HttpRequest.Capture(stream);
+                    request = request == null ? stream.Capture<HttpRequest>() : request.Next();
 
                     ///如果是WebSocket，调用相应的处理方法
                     if (request.IsWebSocket)
                     {
-                        if(!OnWebSocketInternal(request, stream))
+                        if (!OnWebSocketInternal(request, stream))
                         {
                             //WebSocket处理异常，关闭基础流
                             stream.Close();

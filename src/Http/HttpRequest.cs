@@ -20,7 +20,8 @@ namespace IocpSharp.Http
         public string Url => _url;
 
 
-        internal HttpRequest(Stream baseStream): base(baseStream) {}
+        public HttpRequest() : base() { }
+        public HttpRequest(Stream baseStream): base(baseStream) {}
         public HttpRequest(string url, string method = "GET", string httpProtocol = "HTTP/1.1") : base(httpProtocol)
         {
             _url = url;
@@ -77,7 +78,6 @@ namespace IocpSharp.Http
         {
             get
             {
-
                 string connection = Connection;
                 string upgrade = Upgrade;
                 return !string.IsNullOrEmpty(connection) 
@@ -87,8 +87,6 @@ namespace IocpSharp.Http
             }
         }
 
-        //multipart/form-data为文件上传
-        public bool IsUpload => IsMultipart;
 
         private List<FileItem> _files = null;
 
@@ -99,7 +97,7 @@ namespace IocpSharp.Http
         {
             get
             {
-                if (!IsUpload) return _files = new List<FileItem>();
+                if (!IsMultipart) return _files = new List<FileItem>();
                 if(_files == null) ReadUploadContent();
                 return _files;
             }
@@ -113,18 +111,6 @@ namespace IocpSharp.Http
             _form = parser.Forms;
             _files = parser.Files;
         }
-
-        private void ReadRequestBody()
-        {
-
-            using MemoryStream output = new MemoryStream();
-            using (Stream input = OpenRead())
-            {
-                input.CopyTo(output);
-            }
-            _requestBody = output.ToArray();
-        }
-
         #region QueryString相关参数和属性
 
         private string _path = null;
@@ -147,7 +133,6 @@ namespace IocpSharp.Http
         #endregion
 
         #region 请求实体相关参数和属性
-        private byte[] _requestBody = null;
         private NameValueCollection _form = null;
 
 
@@ -155,16 +140,7 @@ namespace IocpSharp.Http
         /// 从请求中读取请求实体
         /// 需要把数据缓存起来
         /// </summary>
-        public byte[] RequestBody
-        {
-            get
-            {
-                if (_requestBody != null) return _requestBody;
-                if (!HasEntityBody) return _requestBody = new byte[0];
-                ReadRequestBody();
-                return _requestBody;
-            }
-        }
+        public byte[] RequestBody => Body;
 
         /// <summary>
         /// 获取表单数据
@@ -176,84 +152,21 @@ namespace IocpSharp.Http
                 //在获取属性值时才初始化_form的值
                 if (_form != null) return _form;
 
-                if(IsUpload && _files == null)
+                if(IsMultipart && _files == null)
                 {
                     ReadUploadContent();
                     return _form;
                 }
 
-                return _form = HttpUtility.ParseUriComponents(Encoding.UTF8.GetString(RequestBody));
+                return _form = HttpUtility.ParseUriComponents(Encoding.UTF8.GetString(Body));
             }
         }
 
         #endregion
 
-        /// <summary>
-        /// 从一个网络流中抓取一个HttpRequest
-        /// </summary>
-        /// <param name="source">任何支持读取的数据流，包括网络流</param>
-        /// <returns>包含请求信息的HttpRequest</returns>
-        public static HttpRequest Capture(Stream source)
+        public HttpRequest Next()
         {
-            byte[] lineBuffer = new byte[65536];
-
-            HttpRequest request = new HttpRequest(source);
-            try
-            {
-                //循环读取请求头，解析每一行
-                while (true)
-                {
-                    string line = ReadLine(source, lineBuffer);
-
-                    //在HttpRequest实例中，解析每一行的数据
-                    if (request.ParseLine(line)) return request.Ready() as HttpRequest;
-                }
-            }
-            catch
-            {
-                request.Dispose();
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 从流中读取一行数据，协议要求，行必须以\r\n结尾
-        /// 因为是演示，这里直接同步方式，按字节读
-        /// 通常，为了提高效率，程序都是预先读取一大块数据，从读取的数据中检索请求头
-        /// 而不是频繁调用Socket的Receive方法（NetworkStream的内部实现）
-        /// </summary>
-        /// <param name="source">数据流</param>
-        /// <param name="lineBuffer">缓冲区</param>
-        /// <returns>数据行</returns>
-        private static string ReadLine(Stream source, byte[] lineBuffer)
-        {
-
-            int offset = 0;
-            int chr;
-
-            while ((chr = source.ReadByte()) > 0)
-            {
-                lineBuffer[offset] = (byte)chr;
-                if (chr == '\n')
-                {
-                    //协议要求，每行必须以\r\n结束
-                    if (offset < 1 || lineBuffer[offset - 1] != '\r')
-                        throw new HttpRequestException(HttpRequestError.NotWellFormed);
-
-                    if (offset == 1)
-                        return "";
-
-                    //可以使用具体的编码来获取字符串数据，例如Encoding.UTF8
-                    //这里使用ASCII读取
-                    return Encoding.ASCII.GetString(lineBuffer, 0, offset - 1);
-                }
-                offset++;
-                //请求头的每行太长，抛出异常
-                if (offset >= lineBuffer.Length)
-                    throw new HttpRequestException(HttpRequestError.LineLengthExceedsLimit);
-            }
-            //请求头还没解析完就没数据了
-            throw new HttpRequestException(HttpRequestError.ConnectionLost);
+            return Next<HttpRequest>();
         }
         protected override void Dispose(bool disposing)
         {
@@ -265,7 +178,6 @@ namespace IocpSharp.Http
                 _query = null;
                 _queryString = null;
                 _form = null;
-                _requestBody = null;
             }
             base.Dispose(disposing);
         }
