@@ -102,7 +102,8 @@ namespace IocpSharp
         // stack overflow on many reads or writes.
         public bool CompletedSynchronously
         {
-            get { return _completedSynchronously; }
+            get =>  _completedSynchronously;
+            internal set => _completedSynchronously = value;
         }
 
         protected virtual void CallUserCallbackWorker()

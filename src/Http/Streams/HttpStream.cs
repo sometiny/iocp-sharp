@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace IocpSharp.Http.Streams
@@ -143,11 +144,7 @@ namespace IocpSharp.Http.Streams
         {
             if(_length > 0)
             {
-                if (count > _length) count = _length;
-                Array.Copy(_buffer, _offset, buffer, offset, count);
-                _offset += count;
-                _length -= count;
-                return count;
+                return CopyFromBuffer(buffer, offset, count);
             }
             return _innerStream.Read(buffer, offset, count);
         }
@@ -161,6 +158,107 @@ namespace IocpSharp.Http.Streams
         public override void Write(byte[] buffer, int offset, int count)
         {
             _innerStream.Write(buffer, offset, count);
+        }
+
+       
+        /// <summary>
+        /// 异步读取数据
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="callback"></param>
+        /// <param name="state"></param>
+        /// <returns></returns>
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            if(_length > 0)
+            {
+                HttpStreamReadResult asyncResult = new HttpStreamReadResult(callback, state, buffer, offset, count);
+
+                asyncResult.BytesTransfered = CopyFromBuffer(buffer, offset, count);
+                asyncResult.CallUserCallback();
+
+                return asyncResult;
+            }
+            return _innerStream.BeginRead(buffer, offset, count, callback, state);
+        }
+
+        /// <summary>
+        /// 结束异步读取数据
+        /// </summary>
+        /// <param name="asyncResult"></param>
+        /// <returns></returns>
+        public override int EndRead(IAsyncResult asyncResult)
+        {
+            if(asyncResult is HttpStreamReadResult httpStreamReadResult)
+            {
+                return httpStreamReadResult.BytesTransfered;
+            }
+            return _innerStream.EndRead(asyncResult);
+        }
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="callback"></param>
+        /// <param name="state"></param>
+        /// <returns></returns>
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            return _innerStream.BeginWrite(buffer, offset, count, callback, state);
+        }
+
+        /// <summary>
+        /// 结束异步写入数据
+        /// </summary>
+        /// <param name="asyncResult"></param>
+        public override void EndWrite(IAsyncResult asyncResult)
+        {
+            _innerStream.EndWrite(asyncResult);
+        }
+
+        /// <summary>
+        /// 重写异步读取方法，非必须，但有必要
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if(_length > 0)
+            {
+                return Task.FromResult(CopyFromBuffer(buffer, offset, count));
+            }
+            return _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+        }
+
+        /// <summary>
+        /// 重写异步写入方法，非必须，但有必要
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return _innerStream.WriteAsync(buffer, offset, count, cancellationToken);
+        }
+
+        private int CopyFromBuffer(byte[] buffer, int offset, int count)
+        {
+            if (count > _length) count = _length;
+
+            Array.Copy(_buffer, _offset, buffer, offset, count);
+            _offset += count;
+            _length -= count;
+            return count;
         }
 
 

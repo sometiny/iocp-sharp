@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace IocpSharp
 {
@@ -58,7 +59,6 @@ namespace IocpSharp
         /// <returns></returns>
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
-            //Console.WriteLine("IocpNetworkStream.BeginRead");
             //从栈中弹出一个TcpSocketAsyncEventArgs用来读取数据
             TcpSocketAsyncEventArgs e = TcpSocketAsyncEventArgs.Pop();
 
@@ -150,7 +150,6 @@ namespace IocpSharp
         /// <returns></returns>
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int size, AsyncCallback callback, object state)
         {
-            //Console.WriteLine("IocpNetworkStream.BeginWrite");
             TcpSocketAsyncEventArgs e = TcpSocketAsyncEventArgs.Pop();
 
             IocpReadWriteResult asyncResult = new IocpReadWriteResult(callback, state, buffer, offset, size);
@@ -206,6 +205,34 @@ namespace IocpSharp
             if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
             if (result.Exception != null) throw result.Exception;
+        }
+
+        /// <summary>
+        /// 重写异步读方法
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested) return Task.FromCanceled<int>(cancellationToken);
+            return Task.Factory.FromAsync(BeginRead, EndRead, buffer, offset, count, null);
+        }
+
+        /// <summary>
+        /// 重写异步写方法
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested) return Task.FromCanceled(cancellationToken);
+            return Task.Factory.FromAsync(BeginWrite, EndWrite, buffer, offset, count, null);
         }
     }
 }
