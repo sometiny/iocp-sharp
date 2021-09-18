@@ -54,8 +54,8 @@ namespace IocpSharp.Http.Streams
 
             int offset = 0;
             int chr;
-
-            while ((chr = _innerStream.ReadByte()) > 0)
+            //我们不能确定上层数据流是Buffered，在这里再封装一层缓冲区。
+            while ((chr = InternalReadByte()) > 0)
             {
                 lineBuffer[offset] = (byte)chr;
                 if (chr == '\n')
@@ -80,11 +80,66 @@ namespace IocpSharp.Http.Streams
             throw new HttpRequestException(HttpRequestError.ConnectionLost);
         }
 
+        private byte[] _buffer = new byte[32768];
+        private int _offset = 0;
+        private int _length = 0;
+        
+        /// <summary>
+        /// 从缓冲区读取数据，如果缓冲区没数据了，从基础刘读数据到缓冲区
+        /// </summary>
+        /// <returns></returns>
+        private int InternalReadByte()
+        {
+            if(_length == 0)
+            {
+                _offset = 0;
+                _length = _innerStream.Read(_buffer, 0, _buffer.Length);
+                if (_length == 0) return -1;
+            }
+            _length--;
+            return _buffer[_offset++];
+        }
+
+        /// <summary>
+        /// 从基础流读取一个字节，优先清空缓冲区
+        /// </summary>
+        /// <returns></returns>
+        public override int ReadByte()
+        {
+            if (_length > 0)
+            {
+                _length--;
+                return _buffer[_offset++];
+            }
+            return _innerStream.ReadByte();
+        }
+
+        /// <summary>
+        /// 从基础刘读取数据，优先清空缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if(_length > 0)
+            {
+                if (count > _length) count = _length;
+                Array.Copy(_buffer, _offset, buffer, offset, count);
+                _offset += count;
+                _length -= count;
+                return count;
+            }
             return _innerStream.Read(buffer, offset, count);
         }
 
+        /// <summary>
+        /// 写入数据到基础流
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
         public override void Write(byte[] buffer, int offset, int count)
         {
             _innerStream.Write(buffer, offset, count);
