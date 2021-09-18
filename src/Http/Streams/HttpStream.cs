@@ -68,7 +68,6 @@ namespace IocpSharp.Http.Streams
 
             int offset = 0;
             int chr;
-            //我们不能确定上层数据流是Buffered，在这里再封装一层缓冲区。
             while ((chr = InternalReadByte()) > 0)
             {
                 lineBuffer[offset] = (byte)chr;
@@ -94,7 +93,7 @@ namespace IocpSharp.Http.Streams
             throw new HttpRequestException(HttpRequestError.ConnectionLost);
         }
 
-        private byte[] _buffer = new byte[32768];
+        private byte[] _buffer = null;
         private int _offset = 0;
         private int _length = 0;
         
@@ -104,8 +103,11 @@ namespace IocpSharp.Http.Streams
         /// <returns></returns>
         private int InternalReadByte()
         {
-            if(_length == 0)
+            //我们不能确定上层数据流是Buffered，在这里再封装一层缓冲区。
+            if (_innerStream is BufferedNetworkStream) return _innerStream.ReadByte();
+            if (_length == 0)
             {
+                if(_buffer == null) _buffer = new byte[32768];
                 _offset = 0;
                 _length = _innerStream.Read(_buffer, 0, _buffer.Length);
                 if (_length == 0) return -1;
