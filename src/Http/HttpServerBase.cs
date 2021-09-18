@@ -59,6 +59,7 @@ namespace IocpSharp.Http
                 {
                     //捕获一个HttpRequest
                     request = request == null ? stream.Capture<HttpRequest>() : request.Next();
+                    if (request == null) break;
 
                     ///如果是WebSocket，调用相应的处理方法
                     if (request.IsWebSocket)

@@ -168,7 +168,7 @@ namespace IocpSharp.Http
         /// 可以在Ready方法里面做更多事情
         /// 例如解析Host、ContentLength、ContentType、AcceptEncoding、Connection以及Range等请求头
         /// </summary>
-        internal virtual HttpMessage Ready()
+        protected virtual void Ready()
         {
             _originHeaders += "\r\n";
 
@@ -180,8 +180,6 @@ namespace IocpSharp.Http
 
             //解析Content-Type
             ParseContentType(_headers["content-type"]);
-
-            return this;
         }
 
         /// <summary>
@@ -375,7 +373,7 @@ namespace IocpSharp.Http
             try
             {
                 EnsureEntityBodyRead();
-                return (_baseStream as HttpStream).Capture<T>();
+                return (_baseStream as HttpStream).CaptureNext<T>();
             }
             finally
             {
@@ -397,7 +395,11 @@ namespace IocpSharp.Http
         internal bool ParseLine(string line)
         {
             if (!_firstLineParsed && string.IsNullOrEmpty(line)) return false;
-            if (string.IsNullOrEmpty(line)) return true;
+            if (string.IsNullOrEmpty(line))
+            {
+                Ready();
+                return true;
+            }
             _originHeaders += line + "\r\n";
 
             //首行包含请求方法，url和协议等。

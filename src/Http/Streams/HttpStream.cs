@@ -39,12 +39,19 @@ namespace IocpSharp.Http.Streams
             return message.OpenWrite();
         }
 
+        private HttpMessage _lastMessage = null;
         /// <summary>
         /// 捕获一个HttpMessage
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         public T Capture<T>() where T : HttpMessage, new()
+        {
+            if (_lastMessage != null) throw new InvalidOperationException($"请使用'{typeof(T).Name}'的Next方法获取新的HttpMessage。");
+
+            return CaptureNext<T>();
+        }
+        internal T CaptureNext<T>() where T : HttpMessage, new()
         {
             T message = new T();
             message.BaseStream = this;
@@ -57,8 +64,17 @@ namespace IocpSharp.Http.Streams
                     string line = ReadLine(lineBuffer);
 
                     //在HttpRequest实例中，解析每一行的数据
-                    if (message.ParseLine(line)) return message.Ready() as T;
+                    if (message.ParseLine(line))
+                    {
+                        _lastMessage = message;
+                        return message;
+                    }
                 }
+            }
+            catch (HttpHeaderException ex)
+            {
+                if (ex.Error == HttpHeaderError.ConnectionLost) return null;
+                throw;
             }
             catch
             {
