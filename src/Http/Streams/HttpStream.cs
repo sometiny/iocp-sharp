@@ -12,7 +12,6 @@ namespace IocpSharp.Http.Streams
     /// </summary>
     public class HttpStream : Stream
     {
-
         private Stream _innerStream = null;
         private bool _leaveInnerStreamOpen = true;
 
@@ -27,6 +26,21 @@ namespace IocpSharp.Http.Streams
             _leaveInnerStreamOpen = leaveInnerStreamOpen;
         }
 
+        /// <summary>
+        /// 提交一个消息发送请求，并返回输入流
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public Stream Commit(HttpMessage message) {
+            message.BaseStream = this;
+            return message.OpenWrite();
+        }
+
+        /// <summary>
+        /// 捕获一个HttpMessage
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public T Capture<T>() where T : HttpMessage, new()
         {
             T message = new T();

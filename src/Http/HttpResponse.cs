@@ -29,12 +29,16 @@ namespace IocpSharp.Http
 
         public HttpResponse() : base() { }
         public HttpResponse(Stream baseStream) : base(baseStream) { }
+        public HttpResponse(int statusCode) : base("HTTP/1.1")
+        {
+            StatusCode = statusCode;
+        }
         /// <summary>
         /// 使用状态码和协议实例化一个HttpResponse类
         /// </summary>
         /// <param name="statusCode">状态码，200、400等</param>
         /// <param name="httpProtocol">协议，默认用HTTP/1.1</param>
-        public HttpResponse(int statusCode, string httpProtocol = "HTTP/1.1"): base(httpProtocol)
+        public HttpResponse(int statusCode, string httpProtocol): base(httpProtocol)
         {
             StatusCode = statusCode;
         }

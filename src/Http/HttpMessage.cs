@@ -13,7 +13,7 @@ namespace IocpSharp.Http
     public abstract class HttpMessage : IDisposable
     {
         private string _httpProtocol = null;
-        private string _originHeaders = "";
+        private string _originHeaders = "HTTP/1.1";
         private NameValueCollection _headers = new NameValueCollection();
         private Stream _baseStream = null;
 
@@ -29,8 +29,13 @@ namespace IocpSharp.Http
         {
             _baseStream = baseStream;
         }
-        public HttpMessage(string httpProtocol = "HTTP/1.1")
+        public HttpMessage(string httpProtocol)
         {
+            _httpProtocol = httpProtocol;
+        }
+        public HttpMessage(Stream baseStream, string httpProtocol)
+        {
+            _baseStream = baseStream;
             _httpProtocol = httpProtocol;
         }
 
@@ -319,11 +324,20 @@ namespace IocpSharp.Http
         }
         public Stream OpenWrite()
         {
-            if (!HasEntityBody) throw new Exception("消息不包含实体");
 
             if (_entityWriteStream != null)
             {
                 return _entityWriteStream;
+            }
+
+            //把消息头写入基础流
+            byte[] headerBuffer = Encoding.UTF8.GetBytes(GetAllHeaders());
+
+            _baseStream.Write(headerBuffer, 0, headerBuffer.Length);
+
+            if (!HasEntityBody)
+            {
+                return _entityWriteStream = new ContentedWriteStream(_baseStream, 0, true);
             }
 
             //如果同时出现transfer-encoding和content-length

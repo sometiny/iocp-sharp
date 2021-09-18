@@ -21,8 +21,10 @@ namespace IocpSharp.Http
 
 
         public HttpRequest() : base() { }
-        public HttpRequest(Stream baseStream): base(baseStream) {}
-        public HttpRequest(string url, string method = "GET", string httpProtocol = "HTTP/1.1") : base(httpProtocol)
+        public HttpRequest(Stream baseStream): base(baseStream) { }
+        public HttpRequest(string url) : this(url, "GET", "HTTP/1.1"){ }
+        public HttpRequest(string url, string method) : this(url, method, "HTTP/1.1"){ }
+        public HttpRequest(string url, string method, string httpProtocol) : base(httpProtocol)
         {
             _url = url;
             _method = method;
