@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Net;
 using IocpSharp.Http.Responsers;
 using IocpSharp.Http.Streams;
 using System.IO.Compression;
@@ -47,7 +48,8 @@ namespace IocpSharp.Http
         protected override void NewClient(Socket client)
         {
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
-
+            EndPoint localEndPoint = client.LocalEndPoint;
+            EndPoint remoteEndPoint = client.RemoteEndPoint;
             //设置每个链接能处理的请求数
             int processedRequest = 0;
             HttpRequest request = null;
@@ -61,7 +63,7 @@ namespace IocpSharp.Http
                     ///如果是WebSocket，调用相应的处理方法
                     if (request.IsWebSocket)
                     {
-                        if (!OnWebSocketInternal(request, stream))
+                        if (!OnWebSocketInternal(request, stream, localEndPoint, remoteEndPoint))
                         {
                             //WebSocket处理异常，关闭基础流
                             stream.Close();
@@ -204,7 +206,7 @@ namespace IocpSharp.Http
         /// <param name="request"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        private bool OnWebSocketInternal(HttpRequest request, Stream stream)
+        private bool OnWebSocketInternal(HttpRequest request, Stream stream, EndPoint localEndPoint, EndPoint remoteEndPoint)
         {
             string webSocketKey = request.Headers["Sec-WebSocket-Key"];
             if(string.IsNullOrEmpty(webSocketKey))
@@ -235,7 +237,7 @@ namespace IocpSharp.Http
 
 
             //开始WebSocket消息的接收和发送
-            Messager messager = GetMessager(request, stream);
+            Messager messager = GetMessager(request, stream, localEndPoint, remoteEndPoint);
             if (messager != null) messager.Accept();
             return true;
         }
@@ -245,7 +247,7 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="request"></param>
         /// <param name="stream"></param>
-        protected virtual Messager GetMessager(HttpRequest request, Stream stream) {
+        protected virtual Messager GetMessager(HttpRequest request, Stream stream, EndPoint localEndPoint, EndPoint remoteEndPoint) {
             stream.Close();
             return null;
         }
