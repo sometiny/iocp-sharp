@@ -134,7 +134,7 @@ namespace IocpSharp.Http
         /// 获取所有标头
         /// </summary>
         /// <returns></returns>
-        public string GetAllHeaders()
+        internal string GetAllHeaders()
         {
             StringBuilder sb = new StringBuilder();
             return GetAllHeaders(sb);
@@ -304,12 +304,12 @@ namespace IocpSharp.Http
         private Stream _entityWriteStream = null;
         public Stream OpenRead()
         {
-            if (!HasEntityBody) throw new Exception("消息不包含实体");
 
             if (_entityReadStream != null)
             {
                 return _entityReadStream;
             }
+            if (!HasEntityBody) return _entityReadStream = new ContentedReadStream(0, _baseStream, true);
 
             //如果同时出现transfer-encoding和content-length
             //优先处理transfer-encoding，忽略content-length
