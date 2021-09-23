@@ -96,7 +96,6 @@ namespace IocpSharp.Http
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.ToString());
                     //其他异常
                     OnServerError(stream, $"请求异常：{e}");
                     break;

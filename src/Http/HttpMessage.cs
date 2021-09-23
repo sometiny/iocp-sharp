@@ -263,7 +263,7 @@ namespace IocpSharp.Http
             }
         }
 
-        private void ReadBody()
+        private byte[] ReadBody()
         {
 
             using MemoryStream output = new MemoryStream();
@@ -271,7 +271,7 @@ namespace IocpSharp.Http
             {
                 input.CopyTo(output);
             }
-            _messageBody = output.ToArray();
+            return output.ToArray();
         }
 
         private byte[] _messageBody = null;
@@ -285,9 +285,7 @@ namespace IocpSharp.Http
             get
             {
                 if (_messageBody != null) return _messageBody;
-                if (!HasEntityBody) return _messageBody = new byte[0];
-                ReadBody();
-                return _messageBody;
+                return _messageBody = ReadBody();
             }
         }
 
