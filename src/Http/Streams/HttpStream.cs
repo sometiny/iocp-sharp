@@ -94,7 +94,7 @@ namespace IocpSharp.Http.Streams
                 {
                     //协议要求，每行必须以\r\n结束
                     if (offset < 1 || lineBuffer[offset - 1] != '\r')
-                        throw new HttpRequestException(HttpRequestError.NotWellFormed);
+                        throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
 
                     if (offset == 1)
                         return "";
@@ -106,10 +106,10 @@ namespace IocpSharp.Http.Streams
                 offset++;
                 //请求头的每行太长，抛出异常
                 if (offset >= lineBuffer.Length)
-                    throw new HttpRequestException(HttpRequestError.LineLengthExceedsLimit);
+                    throw new HttpHeaderException(HttpHeaderError.LineLengthExceedsLimit);
             }
             //请求头还没解析完就没数据了
-            throw new HttpRequestException(HttpRequestError.ConnectionLost);
+            throw new HttpHeaderException(HttpHeaderError.ConnectionLost);
         }
 
         private byte[] _buffer = null;

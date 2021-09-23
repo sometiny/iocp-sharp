@@ -85,9 +85,9 @@ namespace IocpSharp.Http
                     //释放掉当前请求，准备下一次请求
                     processedRequest++;
                 }
-                catch (HttpRequestException e)
+                catch (HttpHeaderException e)
                 {
-                    if (e.Error == HttpRequestError.ConnectionLost) break;
+                    if (e.Error == HttpHeaderError.ConnectionLost) break;
 
                     //客户端发送的请求异常
                     OnBadRequest(stream, $"请求异常：{e.Error}");
@@ -165,18 +165,22 @@ namespace IocpSharp.Http
             ///处理下非安全的路径
             if (path.IndexOf("..") >= 0 || !path.StartsWith("/"))
             {
-                throw new HttpRequestException(HttpRequestError.ResourcePathError, "不安全的路径访问");
+                OnBadRequest(stream, "不安全的路径访问");
+                return false;
             }
 
 
             string filePath = Path.GetFullPath(Path.Combine(_webRoot, "." + path));
+
+            if(filePath.IndexOf(".") == -1) return OnNotFound(request, stream);
 
             FileInfo fileInfo = new FileInfo(filePath);
             string mimeType = MimeTypes.GetMimeType(fileInfo.Extension);
 
             if (string.IsNullOrEmpty(mimeType))
             {
-                throw new HttpRequestException(HttpRequestError.ResourceMimeError, "不支持的文件类型");
+                OnBadRequest(stream, "不支持的文件类型");
+                return false;
             }
 
             if (!fileInfo.Exists)

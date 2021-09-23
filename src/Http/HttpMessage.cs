@@ -191,7 +191,7 @@ namespace IocpSharp.Http
             if (string.IsNullOrEmpty(header)) return;
             if (!long.TryParse(header, out _contentLength))
             {
-                throw new HttpRequestException(HttpRequestError.ContentLengthError);
+                throw new HttpHeaderException(HttpHeaderError.ContentLengthError);
             }
         }
 

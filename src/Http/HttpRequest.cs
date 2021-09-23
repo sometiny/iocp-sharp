@@ -35,14 +35,14 @@ namespace IocpSharp.Http
             //判断第一个空格，用于截取请求方法
             int idx = line.IndexOf(' ');
             if (idx <= 0)
-                throw new HttpRequestException(HttpRequestError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
 
             //判断最后一个空格，用于截取协议
             int idxEnd = line.LastIndexOf(' ');
             if (idxEnd <= 0
                 || idxEnd == line.Length - 1
                 || idx == idxEnd)
-                throw new HttpRequestException(HttpRequestError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
 
             //截取请求方法，url和协议
             _method = line.Substring(0, idx);
@@ -50,7 +50,7 @@ namespace IocpSharp.Http
             _url = line.Substring(idx + 1, idxEnd - idx - 1).Trim();
 
             if (string.IsNullOrEmpty(_url))
-                throw new HttpRequestException(HttpRequestError.NoneUrl);
+                throw new HttpHeaderException(HttpHeaderError.NoneUrl);
 
 
             idx = _url.IndexOf('?');
