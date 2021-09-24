@@ -20,13 +20,8 @@ namespace IocpSharp.Http.Responsers
         {
             ContentType = "text/html; charset=utf-8";
             _message = string.IsNullOrEmpty(message) ? new byte[0] : Encoding.UTF8.GetBytes(message);
-        }
-
-        protected override string GetAllHeaders(StringBuilder sb)
-        {
             Chunked = false;
             ContentLength = _message.Length;
-            return base.GetAllHeaders(sb);
         }
 
         public override Stream OpenWrite()
