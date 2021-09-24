@@ -51,7 +51,6 @@ namespace IocpSharp.Http.Streams
         /// <returns></returns>
         public Task Commit(HttpMessage message) {
             message.BaseStream = this;
-
             byte[] buffer = Encoding.UTF8.GetBytes(message.GetAllHeaders());
 
             return WriteAsync(buffer, 0, buffer.Length);

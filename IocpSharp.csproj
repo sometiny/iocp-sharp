@@ -59,9 +59,12 @@
     <Compile Include="src\Http\HttpMessage.cs" />
     <Compile Include="src\Http\HttpRequest.cs" />
     <Compile Include="src\Http\HttpResponse.cs" />
-    <Compile Include="src\Http\HttpResponser.cs" />
     <Compile Include="src\Http\HttpServerBase.cs" />
-    <Compile Include="src\Http\Responsers\ChunkedResponser.cs" />
+    <Compile Include="src\Http\Responsers\HttpRedirectResponser.cs" />
+    <Compile Include="src\Http\Responsers\HttpErrorResponser.cs" />
+    <Compile Include="src\Http\Responsers\HttpResourceResponser.cs" />
+    <Compile Include="src\Http\Responsers\HttpTextResponser.cs" />
+    <Compile Include="src\Http\Responsers\HttpResponser.cs" />
     <Compile Include="src\Http\Streams\HttpStreamReadResult.cs" />
     <Compile Include="src\Http\Streams\ChunkedReadStream.cs" />
     <Compile Include="src\Http\Streams\ChunkedWriteStream.cs" />

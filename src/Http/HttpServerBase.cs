@@ -19,6 +19,8 @@ namespace IocpSharp.Http
     public class HttpServerBase : TcpIocpServer
     {
         private static int MaxRequestPerConnection = 20;
+        //结束包内容
+        internal static byte[] _endingChunk = Encoding.ASCII.GetBytes("0\r\n\r\n");
 
         private string _webRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web"));
         private static string _uplaodTempDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "uploads"));
@@ -28,7 +30,7 @@ namespace IocpSharp.Http
 
         //后面的代码可能会越来越复杂，我们做个简单的路由功能
         //可以开发功能更强大的路由
-        private Dictionary<string, Func<HttpRequest, Stream, bool>> _routes = new Dictionary<string, Func<HttpRequest, Stream, bool>>();
+        private Dictionary<string, Action<HttpRequest>> _routes = new Dictionary<string, Action<HttpRequest>>();
 
         public HttpServerBase() : base()
         {
@@ -40,7 +42,7 @@ namespace IocpSharp.Http
             base.Start();
         }
 
-        public void RegisterRoute(string path, Func<HttpRequest, Stream, bool> route)
+        public void RegisterRoute(string path, Action<HttpRequest> route)
         {
             _routes[path] = route;
         }
@@ -65,12 +67,12 @@ namespace IocpSharp.Http
                     return;
                 }
                 //客户端发送的请求异常
-                OnBadRequest(request.BaseStream, $"请求异常：{httpHeaderException.Error}");
+                OnBadRequest(request, $"请求异常：{httpHeaderException.Error}");
             }
             else
             {
                 //其他异常
-                OnServerError(request.BaseStream, $"请求异常：{e}");
+                OnServerError(request, $"请求异常：{e}");
             }
         }
 
@@ -87,28 +89,58 @@ namespace IocpSharp.Http
             //如果是WebSocket，调用相应的处理方法
             if (request.IsWebSocket)
             {
-                if (!OnWebSocketInternal(request, request.BaseStream, request.BaseStream.BaseSocket.LocalEndPoint, request.BaseStream.BaseSocket.RemoteEndPoint))
+                if (!OnWebSocketInternal(request))
                 {
                     return false;
                 }
                 return true;
             }
+            NewRequest(request);
+            return true;
+        }
 
+        protected virtual void NewRequest(HttpRequest request)
+        {
             //尝试查找路由，不存在的话使用NotFound路由
-            if (!_routes.TryGetValue(request.Path, out Func<HttpRequest, Stream, bool> handler))
+            if (!_routes.TryGetValue(request.Path, out Action<HttpRequest> handler))
             {
                 //未匹配到路由，统一当文件资源处理
                 handler = OnResource;
             }
 
-            if (!handler(request, request.BaseStream)) return false;
-
-            //超过单连接处理请求数，停止后续处理。
-            if (request.BaseStream.CapturedMessage >= MaxRequestPerConnection) return false;
-
-            request.Next().ContinueWith(AfterReceiveHttpMessage);
-            return true;
+            try
+            {
+                handler(request);
+            }
+            catch
+            {
+                EndProcessRequest(request);
+            }
         }
+        protected void Next(HttpRequest request, HttpResponser response)
+        {
+            request.BaseStream.Commit(response).ContinueWith(task =>
+            {
+                if (task.Exception != null)
+                {
+                    EndProcessRequest(request);
+                    return;
+                }
+                using Stream _ = response.OpenWrite();
+                if (!string.IsNullOrEmpty(response.TransferEncoding) && response.TransferEncoding.ToLower() == "chunked")
+                {
+                    request.BaseStream.Write(_endingChunk, 0, 5);
+                }
+                //超过单连接处理请求数，停止后续处理。
+                if (!response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
+                {
+                    EndProcessRequest(request);
+                    return;
+                }
+                request.Next().ContinueWith(AfterReceiveHttpMessage);
+            });
+        }
+
         private void AfterReceiveHttpMessage(Task<HttpRequest> task)
         {
             Exception e = task.Exception?.GetBaseException();
@@ -138,16 +170,10 @@ namespace IocpSharp.Http
         /// 响应404错误
         /// </summary>
         /// <param name="request"></param>
-        /// <param name="stream"></param>
         /// <returns></returns>
-        protected virtual bool OnNotFound(HttpRequest request, Stream stream)
+        private void OnNotFound(HttpRequest request)
         {
-            HttpResponser responser = new ChunkedResponser(404);
-            responser.KeepAlive = false;
-            responser.ContentType = "text/html; charset=utf-8";
-            responser.Write(stream, $"请求的资源'{request.Path}'不存在。");
-            responser.End(stream);
-            return false;
+            Next(request, new HttpErrorResponser($"请求的资源'{request.Path}'不存在。", 404));
         }
 
 
@@ -155,30 +181,20 @@ namespace IocpSharp.Http
         /// 请求异常
         /// </summary>
         /// <param name="request"></param>
-        /// <param name="stream"></param>
         /// <param name="message"></param>
-        protected virtual void OnBadRequest(Stream stream, string message)
+        private void OnBadRequest(HttpRequest request, string message)
         {
-            HttpResponser responser = new ChunkedResponser(400);
-            responser.KeepAlive = false;
-            responser.ContentType = "text/html; charset=utf-8";
-            responser.Write(stream, message);
-            responser.End(stream);
+            Next(request, new HttpErrorResponser(message, 400));
         }
 
         /// <summary>
         /// 服务器异常
         /// </summary>
         /// <param name="request"></param>
-        /// <param name="stream"></param>
         /// <param name="message"></param>
-        protected virtual void OnServerError(Stream stream, string message)
+        private void OnServerError(HttpRequest request, string message)
         {
-            HttpResponser responser = new ChunkedResponser(500);
-            responser.KeepAlive = false;
-            responser.ContentType = "text/html; charset=utf-8";
-            responser.Write(stream, message);
-            responser.End(stream);
+            Next(request, new HttpErrorResponser(message, 500));
         }
 
         /// <summary>
@@ -186,51 +202,41 @@ namespace IocpSharp.Http
         /// 必要的情况下可以作缓存处理
         /// </summary>
         /// <param name="request"></param>
-        /// <param name="stream"></param>
-        protected virtual bool OnResource(HttpRequest request, Stream stream)
+        private void OnResource(HttpRequest request)
         {
             string path = request.Path;
 
             ///处理下非安全的路径
             if (path.IndexOf("..") >= 0 || !path.StartsWith("/"))
             {
-                OnBadRequest(stream, "不安全的路径访问");
-                return false;
+                OnBadRequest(request, "不安全的路径访问");
+                return;
             }
 
 
             string filePath = Path.GetFullPath(Path.Combine(_webRoot, "." + path));
 
-            if(filePath.IndexOf(".") == -1) return OnNotFound(request, stream);
+            if (filePath.IndexOf(".") == -1) {
+                OnNotFound(request);
+                return;
+            }
 
             FileInfo fileInfo = new FileInfo(filePath);
             string mimeType = MimeTypes.GetMimeType(fileInfo.Extension);
 
             if (string.IsNullOrEmpty(mimeType))
             {
-                OnBadRequest(stream, "不支持的文件类型");
-                return false;
+                OnNotFound(request);
+                return;
             }
 
             if (!fileInfo.Exists)
             {
-                return OnNotFound(request, stream);
+                OnNotFound(request);
+                return;
             }
 
-            HttpResponser responser = new HttpResponser();
-
-            //拿到的MIME输出给客户端
-            responser.ContentType = mimeType;
-            responser.ContentLength = fileInfo.Length;
-
-            using (Stream output = responser.OpenWrite(stream))
-            {
-                using(Stream input = fileInfo.OpenRead())
-                {
-                    input.CopyTo(stream);
-                }
-            }
-            return true;
+            Next(request, new HttpResourceResponser(fileInfo, mimeType));
         }
 
         /// <summary>
@@ -239,12 +245,12 @@ namespace IocpSharp.Http
         /// <param name="request"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        private bool OnWebSocketInternal(HttpRequest request, Stream stream, EndPoint localEndPoint, EndPoint remoteEndPoint)
+        private bool OnWebSocketInternal(HttpRequest request)
         {
             string webSocketKey = request.Headers["Sec-WebSocket-Key"];
             if(string.IsNullOrEmpty(webSocketKey))
             {
-                OnBadRequest(stream, "header 'Sec-WebSocket-Key' error");
+                OnBadRequest(request, "header 'Sec-WebSocket-Key' error");
                 return false;
             }
 
@@ -259,19 +265,18 @@ namespace IocpSharp.Http
 
             //响应101状态码给客户端
             HttpResponser responser = new HttpResponser(101);
-            responser["Upgrade"] = "websocket";
-            responser["Connection"] = "Upgrade";
+            responser.Connection = "Upgrade";
+            responser.Upgrade = "websocket";
+            responser.KeepAlive = false;
 
             //设置Sec-WebSocket-Accept头
-            responser["Sec-WebSocket-Accept"] = secWebSocketAcceptKey;
+            responser.SetHeader("Sec-WebSocket-Accept", secWebSocketAcceptKey);
 
-            //发送响应
-            responser.WriteHeader(stream);
-
-
-            //开始WebSocket消息的接收和发送
-            Messager messager = GetMessager(request, stream, localEndPoint, remoteEndPoint);
-            if (messager != null) messager.Accept();
+            request.BaseStream.Commit(responser).ContinueWith(task=> {
+                //开始WebSocket消息的接收和发送
+                Messager messager = GetMessager(request);
+                if (messager != null) messager.Accept();
+            });
             return true;
         }
 
@@ -280,8 +285,8 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="request"></param>
         /// <param name="stream"></param>
-        protected virtual Messager GetMessager(HttpRequest request, Stream stream, EndPoint localEndPoint, EndPoint remoteEndPoint) {
-            stream.Close();
+        protected virtual Messager GetMessager(HttpRequest request) {
+            request.BaseStream?.Close();
             return null;
         }
     }

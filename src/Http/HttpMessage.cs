@@ -14,7 +14,7 @@ namespace IocpSharp.Http
     {
         private string _httpProtocol = null;
         private string _originHeaders = "HTTP/1.1";
-        private NameValueCollection _headers = new NameValueCollection();
+        internal protected NameValueCollection _headers = new NameValueCollection();
         private HttpStream _baseStream = null;
 
         public string HttpProtocol { get => _httpProtocol; internal set => _httpProtocol = value; }
@@ -329,12 +329,6 @@ namespace IocpSharp.Http
             {
                 return _entityWriteStream;
             }
-
-            //把消息头写入基础流
-            byte[] headerBuffer = Encoding.UTF8.GetBytes(GetAllHeaders());
-
-            _baseStream.Write(headerBuffer, 0, headerBuffer.Length);
-
             if (!HasEntityBody)
             {
                 return _entityWriteStream = new ContentedWriteStream(_baseStream, 0, true);
