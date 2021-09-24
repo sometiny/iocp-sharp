@@ -8,8 +8,10 @@ namespace IocpSharp.Http
 {
     public enum HttpContentEncoding
     {
+        None = 0,
         Gzip = 1, 
         Deflate = 2, 
-        Br = 4
+        Br = 4,
+        UnInitialized = 256
     }
 }

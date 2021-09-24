@@ -298,9 +298,13 @@ namespace IocpSharp.Http
 
         private Stream _entityReadStream = null;
         private Stream _entityWriteStream = null;
-        public Stream OpenRead()
+        public virtual Stream OpenRead()
         {
+            return OpenReadInternal();
+        }
 
+        internal Stream OpenReadInternal()
+        {
             if (_entityReadStream != null)
             {
                 return _entityReadStream;
@@ -318,9 +322,9 @@ namespace IocpSharp.Http
             //返回一个ContentedReadStream
             return _entityReadStream = new ContentedReadStream(_contentLength, _baseStream, true);
         }
-        public Stream OpenWrite()
-        {
 
+        public virtual Stream OpenWrite()
+        {
             if (_entityWriteStream != null)
             {
                 return _entityWriteStream;
@@ -357,13 +361,10 @@ namespace IocpSharp.Http
         public void EnsureEntityBodyRead()
         {
             //没有请求实体或者数据已经被读了，忽略
-            if (!HasEntityBody || _entityReadStream != null) return;
-            using (Stream forward = OpenRead())
-            {
-                byte[] forwardBytes = new byte[32768];
-                //读取，丢弃
-                while (forward.Read(forwardBytes, 0, 32768) > 0) ;
-            }
+            using Stream forward = OpenReadInternal();
+            byte[] forwardBytes = new byte[32768];
+            //读取，丢弃
+            while (forward.Read(forwardBytes, 0, 32768) > 0) ;
         }
         internal Task<T> Next<T>() where T : HttpMessage, new()
         {
@@ -411,7 +412,7 @@ namespace IocpSharp.Http
             //冒号分割的请求行
             int rowIdx = line.IndexOf(':');
             if (rowIdx <= 0 || rowIdx == line.Length - 1)
-                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed, "行格式错误");
 
 
             _headers.Add(line.Substring(0, rowIdx).Trim(), line.Substring(rowIdx + 1).Trim());
@@ -431,11 +432,13 @@ namespace IocpSharp.Http
         protected virtual void Dispose(bool disposing)
         {
             _entityReadStream?.Dispose();
+            _entityWriteStream?.Dispose();
             _headers?.Clear();
             if (disposing)
             {
                 _baseStream = null;
                 _entityReadStream = null;
+                _entityWriteStream = null;
                 _headers = null;
                 _originHeaders = null;
                 _messageBody = null;

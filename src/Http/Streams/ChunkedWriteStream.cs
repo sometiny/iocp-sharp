@@ -56,6 +56,26 @@ namespace IocpSharp.Http.Streams
             _innerStream.Write(_crlf, 0, 2);
         }
 
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            string length = count.ToString("x") + "\r\n";
+            byte[] lengthBuffer = Encoding.ASCII.GetBytes(length);
+
+            ///实例化新字节数组
+            byte[] newBuffer = new byte[lengthBuffer.Length + count + 2];
+
+            lengthBuffer.CopyTo(newBuffer, 0);
+            Buffer.BlockCopy(buffer, offset, newBuffer, lengthBuffer.Length, count);
+            _crlf.CopyTo(newBuffer, lengthBuffer.Length + count);
+
+            return _innerStream.BeginWrite(newBuffer, 0, newBuffer.Length, callback, state);
+        }
+
+        public override void EndWrite(IAsyncResult asyncResult)
+        {
+            _innerStream.EndWrite(asyncResult);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && !_leaveInnerStreamOpen)

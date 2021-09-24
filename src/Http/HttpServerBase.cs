@@ -103,6 +103,7 @@ namespace IocpSharp.Http
 
             if (!handler(request, request.BaseStream)) return false;
 
+            //超过单连接处理请求数，停止后续处理。
             if (request.BaseStream.CapturedMessage >= MaxRequestPerConnection) return false;
 
             request.Next().ContinueWith(AfterReceiveHttpMessage);

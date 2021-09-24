@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Collections.Specialized;
 using IocpSharp.Http.Streams;
+using System.IO.Compression;
 
 namespace IocpSharp.Http
 {
@@ -45,12 +46,43 @@ namespace IocpSharp.Http
         {
             StatusCode = statusCode;
         }
+
+        private HttpContentEncoding _contentEncoding = HttpContentEncoding.UnInitialized;
+        public HttpContentEncoding ContentEncoding
+        {
+            get
+            {
+                if (_contentEncoding != HttpContentEncoding.UnInitialized) return _contentEncoding;
+                string contentEncoding = GetHeader("Content-Encoding");
+                if (string.IsNullOrEmpty(contentEncoding)) return _contentEncoding = HttpContentEncoding.None;
+                return _contentEncoding = (contentEncoding.ToLower()) switch
+                {
+                    "gzip" => HttpContentEncoding.Gzip,
+                    "deflate" => HttpContentEncoding.Deflate,
+                    "br" => HttpContentEncoding.Br,
+                    _ => throw new NotSupportedException("不支持的内容编码：" + contentEncoding),
+                };
+            }
+            set
+            {
+                if ((value & HttpContentEncoding.UnInitialized) > 0) throw new InvalidOperationException("不允许设置UnInitialized");
+                SetHeader("Content-Encoding", (value) switch
+                {
+                    HttpContentEncoding.Gzip => "gzip",
+                    HttpContentEncoding.Deflate => "deflate",
+                    HttpContentEncoding.Br => "br",
+                    _ => throw new NotSupportedException("不支持的内容编码：" + value),
+                });
+                _contentEncoding = value;
+            }
+        }
+
         protected override void ParseFirstLine(string line)
         {
             int idx = line.IndexOf(' '), idx2 = 0;
             if (idx <= 0 || idx >= line.Length - 1)
             {
-                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed, "响应行格式错误：" + line);
             }
             HttpProtocol = line.Substring(0, idx);
             idx2 = line.IndexOf(' ', idx + 1);
@@ -87,7 +119,7 @@ namespace IocpSharp.Http
         {
             return GetAllHeaders();
         }
-        
+
         /// <summary>
         /// 读取下一个响应
         /// </summary>
@@ -96,6 +128,50 @@ namespace IocpSharp.Http
         {
             return Next<HttpResponse>();
         }
+
+        private Stream _entityReadStream = null;
+        private Stream _entityWriteStream = null;
+        private bool _ignoreContentEncoding = false;
+        public override Stream OpenRead()
+        {
+            if(_ignoreContentEncoding) return base.OpenRead();
+            if (_entityReadStream != null) return _entityReadStream;
+
+            Stream stream = base.OpenRead();
+
+            return _entityReadStream = (ContentEncoding) switch
+            {
+                HttpContentEncoding.Gzip => new GZipStream(stream, CompressionMode.Decompress, true),
+                HttpContentEncoding.Deflate => new DeflateStream(stream, CompressionMode.Decompress, true),
+                HttpContentEncoding.Br => throw new NotSupportedException("暂不支持Br"),
+                _ => stream,
+            };
+        }
+
+        public override Stream OpenWrite()
+        {
+            if (_ignoreContentEncoding) return base.OpenWrite();
+            if (_entityWriteStream != null) return _entityWriteStream;
+
+            Stream stream = base.OpenWrite();
+
+            return _entityWriteStream = (ContentEncoding) switch
+            {
+                HttpContentEncoding.Gzip => new GZipStream(stream, CompressionMode.Compress, true),
+                HttpContentEncoding.Deflate => new DeflateStream(stream, CompressionMode.Compress, true),
+                HttpContentEncoding.Br => throw new NotSupportedException("暂不支持Br"),
+                _ => stream,
+            };
+        }
+        protected override void Dispose(bool disposing)
+        {
+            _entityReadStream?.Dispose();
+            _entityReadStream = null;
+            _entityWriteStream?.Dispose();
+            _entityWriteStream = null;
+            base.Dispose(disposing);
+        }
+
     }
 }
 

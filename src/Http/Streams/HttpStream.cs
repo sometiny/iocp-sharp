@@ -102,13 +102,20 @@ namespace IocpSharp.Http.Streams
         }
         private void AfterReadLine<T>(HttpMessageReadResult<T> asyncResult, string line) where T : HttpMessage, new()
         {
-            HttpMessage message = asyncResult.Message;
-            if (message.ParseLine(line))
+            try
             {
-                asyncResult.CallUserCallback();
-                return;
+                HttpMessage message = asyncResult.Message;
+                if (message.ParseLine(line))
+                {
+                    asyncResult.CallUserCallback();
+                    return;
+                }
+                ReadLineAsync(asyncResult);
             }
-            ReadLineAsync(asyncResult);
+            catch (Exception ex)
+            {
+                asyncResult.SetFailed(ex);
+            }
         }
         private void AfterReadBuffer<T>(IAsyncResult asyncResult) where T: HttpMessage,new() {
             HttpMessageReadResult<T> httpMessageReadResult = asyncResult.AsyncState as HttpMessageReadResult<T>;
@@ -149,7 +156,7 @@ namespace IocpSharp.Http.Streams
                     //协议要求，每行必须以\r\n结束
                     if (offset - _offset  < 2 || _buffer[offset - 2] != '\r')
                     {
-                        asyncResult.SetFailed(new HttpHeaderException(HttpHeaderError.NotWellFormed));
+                        asyncResult.SetFailed(new HttpHeaderException(HttpHeaderError.NotWellFormed, "行标识错误"));
                         return;
                     }
 

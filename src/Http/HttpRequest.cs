@@ -30,19 +30,55 @@ namespace IocpSharp.Http
             _method = method;
         }
 
+        private HttpContentEncoding _acceptEncoding = HttpContentEncoding.UnInitialized;
+        public HttpContentEncoding AcceptEncoding
+        {
+            get
+            {
+
+                if (_acceptEncoding != HttpContentEncoding.UnInitialized) return _acceptEncoding;
+                string acceptEncoding = GetHeader("Accept-Encoding");
+                HttpContentEncoding encodings = HttpContentEncoding.None;
+                if (string.IsNullOrEmpty(acceptEncoding)) return _acceptEncoding = encodings;
+
+                acceptEncoding = acceptEncoding.ToLower();
+                if (acceptEncoding.IndexOf("gzip") >= 0) encodings = encodings | HttpContentEncoding.Gzip;
+                if (acceptEncoding.IndexOf("deflate") >= 0) encodings = encodings | HttpContentEncoding.Deflate;
+                if (acceptEncoding.IndexOf("br") >= 0) encodings = encodings | HttpContentEncoding.Br;
+
+                return _acceptEncoding = encodings;
+            }
+            set
+            {
+                if ((value & HttpContentEncoding.UnInitialized) > 0) throw new InvalidOperationException("不允许设置UnInitialized");
+
+                List<string> encodings = new List<string>();
+                if ((value & HttpContentEncoding.Gzip) > 0) encodings.Add("gzip");
+                if ((value & HttpContentEncoding.Deflate) > 0) encodings.Add("deflate");
+                if ((value & HttpContentEncoding.Br) > 0) encodings.Add("br");
+                _acceptEncoding = value;
+                if (encodings.Count == 0)
+                {
+                    SetHeader("Accept-Encoding", null);
+                    return;
+                }
+                SetHeader("Accept-Encoding", string.Join(", ", encodings));
+            }
+        }
+
         protected override void ParseFirstLine(string line)
         {
             //判断第一个空格，用于截取请求方法
             int idx = line.IndexOf(' ');
             if (idx <= 0)
-                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed, "请求行格式错误(1)：" + line);
 
             //判断最后一个空格，用于截取协议
             int idxEnd = line.LastIndexOf(' ');
             if (idxEnd <= 0
                 || idxEnd == line.Length - 1
                 || idx == idxEnd)
-                throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+                throw new HttpHeaderException(HttpHeaderError.NotWellFormed, "请求行格式错误(2)：" + line);
 
             //截取请求方法，url和协议
             _method = line.Substring(0, idx);

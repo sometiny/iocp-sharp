@@ -41,6 +41,18 @@ namespace IocpSharp.Http.Streams
             _contentLength -= count;
         }
 
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            if (_contentLength < count) throw new Exception("发送响应内容过长");
+            _contentLength -= count;
+            return _innerStream.BeginWrite(buffer, offset, count, callback, state);
+        }
+
+        public override void EndWrite(IAsyncResult asyncResult)
+        {
+            _innerStream.EndWrite(asyncResult);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && !_leaveInnerStreamOpen)
