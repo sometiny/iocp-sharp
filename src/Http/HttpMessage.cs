@@ -15,7 +15,7 @@ namespace IocpSharp.Http
         private string _httpProtocol = null;
         private string _originHeaders = "HTTP/1.1";
         private NameValueCollection _headers = new NameValueCollection();
-        private Stream _baseStream = null;
+        private HttpStream _baseStream = null;
 
         public string HttpProtocol { get => _httpProtocol; internal set => _httpProtocol = value; }
         public string OriginHeaders => _originHeaders;
@@ -25,7 +25,7 @@ namespace IocpSharp.Http
         internal HttpMessage()
         {
         }
-        internal HttpMessage(Stream baseStream)
+        internal HttpMessage(HttpStream baseStream)
         {
             _baseStream = baseStream;
         }
@@ -33,13 +33,13 @@ namespace IocpSharp.Http
         {
             _httpProtocol = httpProtocol;
         }
-        public HttpMessage(Stream baseStream, string httpProtocol)
+        public HttpMessage(HttpStream baseStream, string httpProtocol)
         {
             _baseStream = baseStream;
             _httpProtocol = httpProtocol;
         }
 
-        internal Stream BaseStream { get => _baseStream; set => _baseStream = value; }
+        internal HttpStream BaseStream { get => _baseStream; set => _baseStream = value; }
 
         /// <summary>
         /// 设置或获取Connection
@@ -365,13 +365,12 @@ namespace IocpSharp.Http
                 while (forward.Read(forwardBytes, 0, 32768) > 0) ;
             }
         }
-
-        internal T Next<T>() where T : HttpMessage, new()
+        internal void Next<T>(HttpMessageReadDelegate<T> callback) where T : HttpMessage, new()
         {
             try
             {
                 EnsureEntityBodyRead();
-                return (_baseStream as HttpStream).CaptureNext<T>();
+                _baseStream.CaptureNext(callback);
             }
             finally
             {

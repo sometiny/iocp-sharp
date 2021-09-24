@@ -21,7 +21,7 @@ namespace IocpSharp.Http
 
 
         public HttpRequest() : base() { }
-        public HttpRequest(Stream baseStream): base(baseStream) { }
+        public HttpRequest(HttpStream baseStream): base(baseStream) { }
         public HttpRequest(string url) : this(url, "GET", "HTTP/1.1"){ }
         public HttpRequest(string url, string method) : this(url, method, "HTTP/1.1"){ }
         public HttpRequest(string url, string method, string httpProtocol) : base(httpProtocol)
@@ -166,9 +166,9 @@ namespace IocpSharp.Http
 
         #endregion
 
-        public HttpRequest Next()
+        public void Next(HttpMessageReadDelegate<HttpRequest> callback)
         {
-            return Next<HttpRequest>();
+            base.Next(callback);
         }
         protected override void Dispose(bool disposing)
         {

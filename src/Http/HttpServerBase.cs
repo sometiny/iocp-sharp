@@ -45,64 +45,82 @@ namespace IocpSharp.Http
             _routes[path] = route;
         }
 
+        private void EndProcessRequest(HttpRequest request) {
+
+            request?.BaseStream?.Close();
+            request?.Dispose();
+        }
+        private void ProcessRequestException(Exception e, HttpRequest request)
+        {
+            if (e is HttpHeaderException httpHeaderException)
+            {
+                if (httpHeaderException.Error == HttpHeaderError.ConnectionLost)
+                {
+                    return;
+                }
+                //客户端发送的请求异常
+                OnBadRequest(request.BaseStream, $"请求异常：{httpHeaderException.Error}");
+            }
+            else
+            {
+                //其他异常
+                OnServerError(request.BaseStream, $"请求异常：{e}");
+            }
+        }
+
+        private bool ProcessRequest(HttpRequest request)
+        {
+
+            if (request == null) return false;
+
+            ///如果是WebSocket，调用相应的处理方法
+            if (request.IsWebSocket)
+            {
+                if (!OnWebSocketInternal(request, request.BaseStream, request.BaseStream.BaseSocket.LocalEndPoint, request.BaseStream.BaseSocket.RemoteEndPoint))
+                {
+                    return false;
+                }
+                return true;
+            }
+
+            //尝试查找路由，不存在的话使用NotFound路由
+            if (!_routes.TryGetValue(request.Path, out Func<HttpRequest, Stream, bool> handler))
+            {
+                //未匹配到路由，统一当文件资源处理
+                handler = OnResource;
+            }
+
+            //如果处理程序返回false，那么我们退出循环，关掉连接。
+            if (!handler(request, request.BaseStream)) return false;
+
+            if (request.BaseStream.CapturedMessage >= MaxRequestPerConnection) return false;
+
+            request.Next(AfterReceiveHttpMessage);
+            return true;
+
+        }
+        private void AfterReceiveHttpMessage(Exception e, HttpRequest request)
+        {
+
+            if (e != null)
+            {
+                ProcessRequestException(e, request);
+                EndProcessRequest(request);
+                return;
+            }
+
+            if (!ProcessRequest(request))
+            {
+                EndProcessRequest(request);
+            }
+        }
+
         protected override void NewClient(Socket client)
         {
+            Console.WriteLine("New Connection!");
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
-            EndPoint localEndPoint = client.LocalEndPoint;
-            EndPoint remoteEndPoint = client.RemoteEndPoint;
-            //设置每个链接能处理的请求数
-            int processedRequest = 0;
-            HttpRequest request = null;
-            while (processedRequest < MaxRequestPerConnection)
-            {
-                try
-                {
-                    //捕获一个HttpRequest
-                    request = request == null ? stream.Capture<HttpRequest>() : request.Next();
-                    if (request == null) break;
 
-                    ///如果是WebSocket，调用相应的处理方法
-                    if (request.IsWebSocket)
-                    {
-                        if (!OnWebSocketInternal(request, stream, localEndPoint, remoteEndPoint))
-                        {
-                            //WebSocket处理异常，关闭基础流
-                            stream.Close();
-                        }
-                        break;
-                    }
-
-                    //尝试查找路由，不存在的话使用NotFound路由
-                    if (!_routes.TryGetValue(request.Path, out Func<HttpRequest, Stream, bool> handler))
-                    {
-                        //未匹配到路由，统一当文件资源处理
-                        handler = OnResource;
-                    }
-
-                    //如果处理程序返回false，那么我们退出循环，关掉连接。
-                    if (!handler(request, stream)) break;
-
-                    //释放掉当前请求，准备下一次请求
-                    processedRequest++;
-                }
-                catch (HttpHeaderException e)
-                {
-                    if (e.Error == HttpHeaderError.ConnectionLost) break;
-
-                    //客户端发送的请求异常
-                    OnBadRequest(stream, $"请求异常：{e.Error}");
-                    break;
-
-                }
-                catch (Exception e)
-                {
-                    //其他异常
-                    OnServerError(stream, $"请求异常：{e}");
-                    break;
-                }
-            }
-            request?.Dispose();
-            stream.Close();
+            stream.CaptureNext<HttpRequest>(AfterReceiveHttpMessage);
         }
 
         /// <summary>
@@ -193,6 +211,7 @@ namespace IocpSharp.Http
             //拿到的MIME输出给客户端
             responser.ContentType = mimeType;
             responser.ContentLength = fileInfo.Length;
+            responser.Response.SetHeader("Request-Result-Hits", HttpHeaderReadResult.InstanceAmount.ToString());
 
             using (Stream output = responser.OpenWrite(stream))
             {

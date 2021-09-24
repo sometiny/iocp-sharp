@@ -5,17 +5,26 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Sockets;
 
 namespace IocpSharp.Http.Streams
 {
+
+    public delegate void HttpMessageReadDelegate<T>(Exception e, T message) where T : HttpMessage , new();
+    internal delegate void InternalHttpMessageReadDelegate(HttpHeaderReadResult asyncResult);
     /// <summary>
     /// 实现一个对HTTP消息读取的流
     /// </summary>
-    public class HttpStream : Stream
+    public class HttpStream : Stream, ISocketBasedStream
     {
         private Stream _innerStream = null;
         private bool _leaveInnerStreamOpen = true;
         private bool _streamIsBuffered = false;
+        private int _capturedMessage = 0;
+
+        internal int CapturedMessage => _capturedMessage;
+
+        public Socket BaseSocket => (_innerStream as ISocketBasedStream).BaseSocket;
 
         /// <summary>
         /// 使用基础流和模式创建实例
@@ -39,102 +48,109 @@ namespace IocpSharp.Http.Streams
             return message.OpenWrite();
         }
 
-        private HttpMessage _lastMessage = null;
-        /// <summary>
-        /// 捕获一个HttpMessage
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        public T Capture<T>() where T : HttpMessage, new()
-        {
-            if (_lastMessage != null) throw new InvalidOperationException($"请使用'{typeof(T).Name}'的Next方法获取新的HttpMessage。");
-
-            return CaptureNext<T>();
-        }
-        internal T CaptureNext<T>() where T : HttpMessage, new()
+        internal void CaptureNext<T>(HttpMessageReadDelegate<T> callback) where T : HttpMessage, new()
         {
             T message = new T();
             message.BaseStream = this;
+            _capturedMessage++;
+            HttpHeaderReadResult lineReadResult = HttpHeaderReadResult.Pop(AfterReadLine, (asyncResult) => { 
+                callback(asyncResult.Exception, asyncResult.AsyncState as T);
+                HttpHeaderReadResult.Push(asyncResult);
+            }, message);
             try
             {
-                //循环读取请求头，解析每一行
-                byte[] lineBuffer = new byte[32768];
-                while (true)
-                {
-                    string line = ReadLine(lineBuffer);
-
-                    //在HttpRequest实例中，解析每一行的数据
-                    if (message.ParseLine(line))
-                    {
-                        _lastMessage = message;
-                        return message;
-                    }
-                }
+                ReadLineAsync(lineReadResult);
             }
-            catch (HttpHeaderException ex)
+            catch(Exception e)
             {
-                if (ex.Error == HttpHeaderError.ConnectionLost) return null;
-                throw;
-            }
-            catch
-            {
-                message.Dispose();
-                throw;
+                lineReadResult.SetFailed(e);
             }
         }
-        private string ReadLine(byte[] lineBuffer)
-        {
-
-            int offset = 0;
-            int chr;
-            while ((chr = InternalReadByte()) > 0)
+        private void AfterReadLine(IAsyncResult asyncResult ) {
+            HttpHeaderReadResult lineReadResult = asyncResult as HttpHeaderReadResult;
+            HttpMessage message = lineReadResult.AsyncState as HttpMessage;
+            if (lineReadResult.Exception != null)
             {
-                lineBuffer[offset] = (byte)chr;
+                lineReadResult.Complete();
+                return;
+            }
+            if (message.ParseLine(lineReadResult.Line))
+            {
+                lineReadResult.Complete();
+                return;
+            }
+            ReadLineAsync(lineReadResult);
+        }
+        private void AfterReadBuffer(IAsyncResult asyncResult) {
+            HttpHeaderReadResult lineReadResult = asyncResult.AsyncState as HttpHeaderReadResult;
+
+            try
+            {
+                int rec = _innerStream.EndRead(asyncResult);
+                if(rec == 0)
+                {
+                    lineReadResult.SetFailed(new HttpHeaderException(HttpHeaderError.ConnectionLost));
+                    return;
+                }
+                _length += rec;
+                ReadLineAsync(lineReadResult);
+            }
+            catch(Exception e)
+            {
+                lineReadResult.SetFailed(e);
+            }
+        }
+        private void ReadLineAsync(HttpHeaderReadResult asyncResult) {
+            int offset = _offset;
+            byte chr;
+            if (_length == 0)
+            {
+                if (_buffer == null) _buffer = new byte[32768];
+                _offset = 0;
+                _innerStream.BeginRead(_buffer, 0, _buffer.Length, AfterReadBuffer, asyncResult);
+                return;
+            }
+
+            while(offset < _offset + _length)
+            {
+                chr = _buffer[offset++];
                 if (chr == '\n')
                 {
                     //协议要求，每行必须以\r\n结束
-                    if (offset < 1 || lineBuffer[offset - 1] != '\r')
-                        throw new HttpHeaderException(HttpHeaderError.NotWellFormed);
+                    if (offset - _offset  < 2 || _buffer[offset - 2] != '\r')
+                    {
+                        asyncResult.SetFailed(new HttpHeaderException(HttpHeaderError.NotWellFormed));
+                        return;
+                    }
 
-                    if (offset == 1)
-                        return "";
-
-                    //可以使用具体的编码来获取字符串数据，例如Encoding.UTF8
-                    //这里使用ASCII读取
-                    return Encoding.ASCII.GetString(lineBuffer, 0, offset - 1);
+                    string line = Encoding.ASCII.GetString(_buffer, _offset, offset - _offset - 2);
+                    _length -= offset - _offset;
+                    _offset = offset;
+                    asyncResult.LineRead(line);
+                    return;
                 }
-                offset++;
-                //请求头的每行太长，抛出异常
-                if (offset >= lineBuffer.Length)
-                    throw new HttpHeaderException(HttpHeaderError.LineLengthExceedsLimit);
             }
-            //请求头还没解析完就没数据了
-            throw new HttpHeaderException(HttpHeaderError.ConnectionLost);
+            if(_offset > 0)
+            {
+                for(int i = 0; i < _length; i++)
+                {
+                    _buffer[i] = _buffer[_offset + i];
+                }
+                _offset = 0;
+            }
+            
+            if(_length == _buffer.Length)
+            {
+                asyncResult.SetFailed(new HttpHeaderException(HttpHeaderError.LineLengthExceedsLimit));
+                return;
+            }
+            _innerStream.BeginRead(_buffer, _offset + _length, _buffer.Length - _offset - _length, AfterReadBuffer, asyncResult);
         }
 
         private byte[] _buffer = null;
         private int _offset = 0;
         private int _length = 0;
         
-        /// <summary>
-        /// 从缓冲区读取数据，如果缓冲区没数据了，从基础刘读数据到缓冲区
-        /// </summary>
-        /// <returns></returns>
-        private int InternalReadByte()
-        {
-            //我们上层数据流是Buffered，直接使用上层数据流。
-            if (_streamIsBuffered) return _innerStream.ReadByte();
-            if (_length == 0)
-            {
-                if(_buffer == null) _buffer = new byte[32768];
-                _offset = 0;
-                _length = _innerStream.Read(_buffer, 0, _buffer.Length);
-                if (_length == 0) return -1;
-            }
-            _length--;
-            return _buffer[_offset++];
-        }
-
         /// <summary>
         /// 从基础流读取一个字节，优先清空缓冲区
         /// </summary>

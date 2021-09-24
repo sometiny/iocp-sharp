@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Collections.Specialized;
+using IocpSharp.Http.Streams;
 
 namespace IocpSharp.Http
 {
@@ -14,9 +15,11 @@ namespace IocpSharp.Http
         private int _statusCode = 200;
         private string _statusText = "OK";
 
-        public int StatusCode { 
-            get => _statusCode; 
-            set {
+        public int StatusCode
+        {
+            get => _statusCode;
+            set
+            {
                 string statusText = HttpStatus.GetStatus(value);
 
                 if (string.IsNullOrEmpty(statusText))
@@ -28,7 +31,7 @@ namespace IocpSharp.Http
         }
 
         public HttpResponse() : base() { }
-        public HttpResponse(Stream baseStream) : base(baseStream) { }
+        public HttpResponse(HttpStream baseStream) : base(baseStream) { }
         public HttpResponse(int statusCode) : base("HTTP/1.1")
         {
             StatusCode = statusCode;
@@ -38,7 +41,7 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="statusCode">状态码，200、400等</param>
         /// <param name="httpProtocol">协议，默认用HTTP/1.1</param>
-        public HttpResponse(int statusCode, string httpProtocol): base(httpProtocol)
+        public HttpResponse(int statusCode, string httpProtocol) : base(httpProtocol)
         {
             StatusCode = statusCode;
         }
@@ -84,9 +87,10 @@ namespace IocpSharp.Http
         {
             return GetAllHeaders();
         }
-        public HttpResponse Next()
+        public void Next(HttpMessageReadDelegate<HttpResponse> callback)
         {
-            return Next<HttpResponse>();
+            base.Next(callback);
         }
     }
 }
+
