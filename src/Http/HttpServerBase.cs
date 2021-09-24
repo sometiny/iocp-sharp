@@ -50,6 +50,12 @@ namespace IocpSharp.Http
             request?.BaseStream?.Close();
             request?.Dispose();
         }
+
+        /// <summary>
+        /// 异常处理
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="request"></param>
         private void ProcessRequestException(Exception e, HttpRequest request)
         {
             if (e is HttpHeaderException httpHeaderException)
@@ -68,12 +74,17 @@ namespace IocpSharp.Http
             }
         }
 
+        /// <summary>
+        /// 请求处理
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         private bool ProcessRequest(HttpRequest request)
         {
 
             if (request == null) return false;
 
-            ///如果是WebSocket，调用相应的处理方法
+            //如果是WebSocket，调用相应的处理方法
             if (request.IsWebSocket)
             {
                 if (!OnWebSocketInternal(request, request.BaseStream, request.BaseStream.BaseSocket.LocalEndPoint, request.BaseStream.BaseSocket.RemoteEndPoint))
@@ -90,17 +101,17 @@ namespace IocpSharp.Http
                 handler = OnResource;
             }
 
-            //如果处理程序返回false，那么我们退出循环，关掉连接。
             if (!handler(request, request.BaseStream)) return false;
 
             if (request.BaseStream.CapturedMessage >= MaxRequestPerConnection) return false;
 
-            request.Next(AfterReceiveHttpMessage);
+            request.Next().ContinueWith(AfterReceiveHttpMessage);
             return true;
-
         }
-        private void AfterReceiveHttpMessage(Exception e, HttpRequest request)
+        private void AfterReceiveHttpMessage(Task<HttpRequest> task)
         {
+            Exception e = task.Exception?.GetBaseException();
+            HttpRequest request = task.Result;
 
             if (e != null)
             {
@@ -117,10 +128,9 @@ namespace IocpSharp.Http
 
         protected override void NewClient(Socket client)
         {
-            Console.WriteLine("New Connection!");
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
 
-            stream.CaptureNext<HttpRequest>(AfterReceiveHttpMessage);
+            stream.Capture<HttpRequest>().ContinueWith(AfterReceiveHttpMessage);
         }
 
         /// <summary>
@@ -211,7 +221,6 @@ namespace IocpSharp.Http
             //拿到的MIME输出给客户端
             responser.ContentType = mimeType;
             responser.ContentLength = fileInfo.Length;
-            responser.Response.SetHeader("Request-Result-Hits", HttpHeaderReadResult.InstanceAmount.ToString());
 
             using (Stream output = responser.OpenWrite(stream))
             {

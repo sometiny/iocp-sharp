@@ -11,7 +11,15 @@ namespace IocpSharp.Http.Streams
 {
 
     public delegate void HttpMessageReadDelegate<T>(Exception e, T message) where T : HttpMessage , new();
-    internal delegate void InternalHttpMessageReadDelegate(HttpHeaderReadResult asyncResult);
+    internal class HttpMessageReadResult<T> : AsyncResult<T> where T : HttpMessage, new()
+    {
+        private T _message = null;
+        public T Message => _message;
+        public HttpMessageReadResult(T message, AsyncCallback userCallback, object userStateObject) : base(userCallback, userStateObject)
+        {
+            _message = message;
+        }
+    }
     /// <summary>
     /// 实现一个对HTTP消息读取的流
     /// </summary>
@@ -19,7 +27,6 @@ namespace IocpSharp.Http.Streams
     {
         private Stream _innerStream = null;
         private bool _leaveInnerStreamOpen = true;
-        private bool _streamIsBuffered = false;
         private int _capturedMessage = 0;
 
         internal int CapturedMessage => _capturedMessage;
@@ -35,7 +42,6 @@ namespace IocpSharp.Http.Streams
         {
             _innerStream = stream;
             _leaveInnerStreamOpen = leaveInnerStreamOpen;
-            _streamIsBuffered = _innerStream is BufferedNetworkStream;
         }
 
         /// <summary>
@@ -48,66 +54,90 @@ namespace IocpSharp.Http.Streams
             return message.OpenWrite();
         }
 
-        internal void CaptureNext<T>(HttpMessageReadDelegate<T> callback) where T : HttpMessage, new()
+        /// <summary>
+        /// 获取一个HTTP消息（请求或响应）
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public Task<T> Capture<T>() where T : HttpMessage, new()
+        {
+            return CaptureNext<T>();
+        }
+
+        /// <summary>
+        /// 获取下一个HTTP消息（请求或响应）
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        internal Task<T> CaptureNext<T>() where T : HttpMessage, new()
+        {
+            return Task.Factory.FromAsync(BeginCaptureNext<T>, EndCaptureNext<T>, null);
+        }
+
+        internal IAsyncResult BeginCaptureNext<T>(AsyncCallback callback, object state) where T : HttpMessage, new()
         {
             T message = new T();
             message.BaseStream = this;
             _capturedMessage++;
-            HttpHeaderReadResult lineReadResult = HttpHeaderReadResult.Pop(AfterReadLine, (asyncResult) => { 
-                callback(asyncResult.Exception, asyncResult.AsyncState as T);
-                HttpHeaderReadResult.Push(asyncResult);
-            }, message);
+            HttpMessageReadResult<T> httpMessageReadResult = new HttpMessageReadResult<T>(message, callback, state);
+
             try
             {
-                ReadLineAsync(lineReadResult);
+                ReadLineAsync(httpMessageReadResult);
             }
             catch(Exception e)
             {
-                lineReadResult.SetFailed(e);
+                httpMessageReadResult.SetFailed(e);
             }
+            return httpMessageReadResult;
         }
-        private void AfterReadLine(IAsyncResult asyncResult ) {
-            HttpHeaderReadResult lineReadResult = asyncResult as HttpHeaderReadResult;
-            HttpMessage message = lineReadResult.AsyncState as HttpMessage;
-            if (lineReadResult.Exception != null)
+
+        internal T EndCaptureNext<T>(IAsyncResult asyncResult) where T : HttpMessage, new()
+        {
+            HttpMessageReadResult<T> httpMessageReadResult = asyncResult as HttpMessageReadResult<T>;
+            if (!asyncResult.IsCompleted) asyncResult.AsyncWaitHandle.WaitOne();
+            if (httpMessageReadResult.Exception != null) throw httpMessageReadResult.Exception;
+
+            return httpMessageReadResult.Message;
+        }
+        private void AfterReadLine<T>(HttpMessageReadResult<T> asyncResult, string line) where T : HttpMessage, new()
+        {
+            HttpMessage message = asyncResult.Message;
+            if (message.ParseLine(line))
             {
-                lineReadResult.Complete();
+                asyncResult.CallUserCallback();
                 return;
             }
-            if (message.ParseLine(lineReadResult.Line))
-            {
-                lineReadResult.Complete();
-                return;
-            }
-            ReadLineAsync(lineReadResult);
+            ReadLineAsync(asyncResult);
         }
-        private void AfterReadBuffer(IAsyncResult asyncResult) {
-            HttpHeaderReadResult lineReadResult = asyncResult.AsyncState as HttpHeaderReadResult;
+        private void AfterReadBuffer<T>(IAsyncResult asyncResult) where T: HttpMessage,new() {
+            HttpMessageReadResult<T> httpMessageReadResult = asyncResult.AsyncState as HttpMessageReadResult<T>;
 
             try
             {
                 int rec = _innerStream.EndRead(asyncResult);
                 if(rec == 0)
                 {
-                    lineReadResult.SetFailed(new HttpHeaderException(HttpHeaderError.ConnectionLost));
+                    httpMessageReadResult.SetFailed(new HttpHeaderException(HttpHeaderError.ConnectionLost));
                     return;
                 }
                 _length += rec;
-                ReadLineAsync(lineReadResult);
+                ReadLineAsync(httpMessageReadResult);
             }
             catch(Exception e)
             {
-                lineReadResult.SetFailed(e);
+                httpMessageReadResult.SetFailed(e);
             }
         }
-        private void ReadLineAsync(HttpHeaderReadResult asyncResult) {
+        private void ReadLineAsync<T>(HttpMessageReadResult<T> asyncResult) where T : HttpMessage, new()
+        {
             int offset = _offset;
             byte chr;
             if (_length == 0)
             {
                 if (_buffer == null) _buffer = new byte[32768];
                 _offset = 0;
-                _innerStream.BeginRead(_buffer, 0, _buffer.Length, AfterReadBuffer, asyncResult);
+                _innerStream.BeginRead(_buffer, 0, _buffer.Length, AfterReadBuffer<T>, asyncResult);
                 return;
             }
 
@@ -126,16 +156,13 @@ namespace IocpSharp.Http.Streams
                     string line = Encoding.ASCII.GetString(_buffer, _offset, offset - _offset - 2);
                     _length -= offset - _offset;
                     _offset = offset;
-                    asyncResult.LineRead(line);
+                    AfterReadLine(asyncResult, line);
                     return;
                 }
             }
             if(_offset > 0)
             {
-                for(int i = 0; i < _length; i++)
-                {
-                    _buffer[i] = _buffer[_offset + i];
-                }
+                Buffer.BlockCopy(_buffer, _offset, _buffer, 0, _length);
                 _offset = 0;
             }
             
@@ -144,7 +171,7 @@ namespace IocpSharp.Http.Streams
                 asyncResult.SetFailed(new HttpHeaderException(HttpHeaderError.LineLengthExceedsLimit));
                 return;
             }
-            _innerStream.BeginRead(_buffer, _offset + _length, _buffer.Length - _offset - _length, AfterReadBuffer, asyncResult);
+            _innerStream.BeginRead(_buffer, _offset + _length, _buffer.Length - _offset - _length, AfterReadBuffer<T>, asyncResult);
         }
 
         private byte[] _buffer = null;

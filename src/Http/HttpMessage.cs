@@ -365,12 +365,12 @@ namespace IocpSharp.Http
                 while (forward.Read(forwardBytes, 0, 32768) > 0) ;
             }
         }
-        internal void Next<T>(HttpMessageReadDelegate<T> callback) where T : HttpMessage, new()
+        internal Task<T> Next<T>() where T : HttpMessage, new()
         {
             try
             {
                 EnsureEntityBodyRead();
-                _baseStream.CaptureNext(callback);
+                return _baseStream.CaptureNext<T>();
             }
             finally
             {

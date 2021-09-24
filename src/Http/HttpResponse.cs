@@ -87,9 +87,14 @@ namespace IocpSharp.Http
         {
             return GetAllHeaders();
         }
-        public void Next(HttpMessageReadDelegate<HttpResponse> callback)
+        
+        /// <summary>
+        /// 读取下一个响应
+        /// </summary>
+        /// <returns></returns>
+        public Task<HttpResponse> Next()
         {
-            base.Next(callback);
+            return Next<HttpResponse>();
         }
     }
 }

@@ -166,9 +166,13 @@ namespace IocpSharp.Http
 
         #endregion
 
-        public void Next(HttpMessageReadDelegate<HttpRequest> callback)
+        /// <summary>
+        /// 读取下一个请求
+        /// </summary>
+        /// <returns></returns>
+        public Task<HttpRequest> Next()
         {
-            base.Next(callback);
+            return Next<HttpRequest>();
         }
         protected override void Dispose(bool disposing)
         {

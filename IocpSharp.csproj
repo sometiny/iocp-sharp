@@ -68,7 +68,6 @@
     <Compile Include="src\Http\Streams\HttpStream.cs" />
     <Compile Include="src\Http\Streams\ContentedReadStream.cs" />
     <Compile Include="src\Http\Streams\ContentedWriteStream.cs" />
-    <Compile Include="src\Http\Streams\HttpHeaderReadResult.cs" />
     <Compile Include="src\Http\Streams\MultipartReadStream.cs" />
     <Compile Include="src\Http\Utils\BoyerMoore.cs" />
     <Compile Include="src\Http\Utils\HttpHeaderProperty.cs" />
