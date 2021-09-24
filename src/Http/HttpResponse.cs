@@ -15,6 +15,7 @@ namespace IocpSharp.Http
 
         private int _statusCode = 200;
         private string _statusText = "OK";
+        private bool _ignoreContentEncoding = false;
 
         public int StatusCode
         {
@@ -30,6 +31,8 @@ namespace IocpSharp.Http
                 _statusText = statusText;
             }
         }
+
+        public bool IgnoreContentEncoding { get => _ignoreContentEncoding; set => _ignoreContentEncoding = value; }
 
         public HttpResponse() : base() { }
         public HttpResponse(HttpStream baseStream) : base(baseStream) { }
@@ -131,7 +134,6 @@ namespace IocpSharp.Http
 
         private Stream _entityReadStream = null;
         private Stream _entityWriteStream = null;
-        private bool _ignoreContentEncoding = false;
         public override Stream OpenRead()
         {
             if(_ignoreContentEncoding) return base.OpenRead();
