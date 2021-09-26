@@ -34,6 +34,7 @@ namespace IocpSharp.Http.Responsers
             _headers["Location"] = null;
             _headers["Date"] = DateTime.UtcNow.ToString("r");
             _headers["Sec-WebSocket-Accept"] = null;
+            _headers["Upgrade"] = null;
             _headers["Connection"] = null;
 
         }
