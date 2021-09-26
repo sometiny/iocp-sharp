@@ -124,14 +124,11 @@ namespace IocpSharp.Http
         protected void Next(HttpRequest request, HttpResponser response)
         {
             response.KeepAlive = request.Connection != "close";
-            response.CommitTo(request).ContinueWith(task =>
+            try
             {
-                if (task.Exception != null)
-                {
-                    EndProcessRequest(request);
-                    return;
-                }
-                task.Result?.Close();
+                Stream output = response.CommitTo(request);
+
+                output?.Close();
                 if (response.IsChunked)
                 {
                     request.BaseStream.Write(_endingChunk, 0, 5);
@@ -143,7 +140,11 @@ namespace IocpSharp.Http
                     return;
                 }
                 request.Next().ContinueWith(AfterReceiveHttpMessage);
-            });
+            }
+            catch
+            {
+                EndProcessRequest(request);
+            }
         }
 
         private void AfterReceiveHttpMessage(Task<HttpRequest> task)
@@ -262,11 +263,10 @@ namespace IocpSharp.Http
             //设置Sec-WebSocket-Accept头
             responser.SetHeader("Sec-WebSocket-Accept", secWebSocketAcceptKey);
 
-            request.BaseStream.Commit(responser).ContinueWith(task=> {
-                //开始WebSocket消息的接收和发送
-                Messager messager = GetMessager(request);
-                if (messager != null) messager.Accept();
-            });
+            request.BaseStream.Commit(responser);
+            //开始WebSocket消息的接收和发送
+            Messager messager = GetMessager(request);
+            if (messager != null) messager.Accept();
             return true;
         }
 

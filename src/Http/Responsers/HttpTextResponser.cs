@@ -23,16 +23,14 @@ namespace IocpSharp.Http.Responsers
             Chunked = false;
             ContentLength = _message.Length;
         }
-
-        public override Stream OpenWrite()
+        protected internal override Stream CommitTo(HttpRequest request)
         {
             if (_message.Length == 0)
             {
-                return base.OpenWrite();
+                return base.CommitTo(request);
             }
-            Stream stream = base.OpenWrite();
+            Stream stream = base.CommitTo(request);
             stream.Write(_message, 0, _message.Length);
-
             return stream;
         }
     }

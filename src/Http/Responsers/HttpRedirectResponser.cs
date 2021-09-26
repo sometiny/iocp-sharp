@@ -21,7 +21,7 @@ namespace IocpSharp.Http.Responsers
         {
             _location = location ?? throw new ArgumentNullException("location");
         }
-        protected internal override Task<Stream> CommitTo(HttpRequest request)
+        protected internal override Stream CommitTo(HttpRequest request)
         {
             SetHeader("Location", _location);
             return base.CommitTo(request);

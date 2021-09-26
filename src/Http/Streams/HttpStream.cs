@@ -49,11 +49,11 @@ namespace IocpSharp.Http.Streams
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public Task Commit(HttpMessage message) {
+        public void Commit(HttpMessage message) {
             message.BaseStream = this;
             byte[] buffer = Encoding.UTF8.GetBytes(message.GetAllHeaders());
 
-            return WriteAsync(buffer, 0, buffer.Length);
+            Write(buffer, 0, buffer.Length);
         }
 
         /// <summary>

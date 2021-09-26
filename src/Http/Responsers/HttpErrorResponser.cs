@@ -16,7 +16,7 @@ namespace IocpSharp.Http.Responsers
         public HttpErrorResponser(string message, int statusCode) : base(message, statusCode)
         {
         }
-        protected internal override Task<Stream> CommitTo(HttpRequest request)
+        protected internal override Stream CommitTo(HttpRequest request)
         {
             if (StatusCode >= 400 && StatusCode != 404)
             {

@@ -34,22 +34,16 @@ namespace IocpSharp.Http.Responsers
             _file = file;
             _mime = mimeType;
         }
-
-        public override Stream OpenWrite()
+        protected internal override Stream CommitTo(HttpRequest request)
         {
-            Stream output = base.OpenWrite();
+            ContentType = _mime;
+            ContentLength = _file.Length;
+            Stream output = base.CommitTo(request);
             using (Stream input = _file.OpenRead())
             {
                 input.CopyTo(output);
             }
             return output;
-        }
-
-        protected internal override Task<Stream> CommitTo(HttpRequest request)
-        {
-            ContentType = _mime;
-            ContentLength = _file.Length;
-            return base.CommitTo(request);
         }
     }
 }
