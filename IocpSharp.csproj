@@ -76,6 +76,7 @@
     <Compile Include="src\Http\Utils\HttpHeaderProperty.cs" />
     <Compile Include="src\Http\Utils\HttpMultipartFormDataParser.cs" />
     <Compile Include="src\Http\Utils\HttpHeaderException.cs" />
+    <Compile Include="src\Http\Utils\HttpResponseException.cs" />
     <Compile Include="src\Http\Utils\HttpStatus.cs" />
     <Compile Include="src\Http\Utils\HttpUtility.cs" />
     <Compile Include="src\Http\Utils\MimeTypes.cs" />

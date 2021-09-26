@@ -18,8 +18,8 @@ namespace IocpSharp.Http.Responsers
 
         public HttpTextResponser(string message, int statusCode) : base(statusCode)
         {
-            ContentType = "text/html; charset=utf-8";
             _message = string.IsNullOrEmpty(message) ? new byte[0] : Encoding.UTF8.GetBytes(message);
+            ContentType = "text/html; charset=utf-8";
             Chunked = false;
             ContentLength = _message.Length;
         }

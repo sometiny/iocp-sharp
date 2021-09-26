@@ -112,6 +112,10 @@ namespace IocpSharp.Http
             {
                 handler(request);
             }
+            catch (HttpResponseException ex)
+            {
+                Next(request, ex.Responser);
+            }
             catch
             {
                 EndProcessRequest(request);
@@ -120,6 +124,7 @@ namespace IocpSharp.Http
         protected void Next(HttpRequest request, HttpResponser response)
         {
             response.KeepAlive = request.Connection != "close";
+            response.BeforeWriteHeader(request);
             request.BaseStream.Commit(response).ContinueWith(task =>
             {
                 if (task.Exception != null)
@@ -216,28 +221,13 @@ namespace IocpSharp.Http
 
 
             string filePath = Path.GetFullPath(Path.Combine(_webRoot, "." + path));
-
-            if (filePath.IndexOf(".") == -1) {
-                OnNotFound(request);
-                return;
-            }
-
-            FileInfo fileInfo = new FileInfo(filePath);
-            string mimeType = MimeTypes.GetMimeType(fileInfo.Extension);
-
-            if (string.IsNullOrEmpty(mimeType))
+            if (filePath.IndexOf(".") == -1)
             {
                 OnNotFound(request);
                 return;
             }
 
-            if (!fileInfo.Exists)
-            {
-                OnNotFound(request);
-                return;
-            }
-
-            Next(request, new HttpResourceResponser(fileInfo, mimeType));
+            Next(request, new HttpResourceResponser(filePath));
         }
 
         /// <summary>

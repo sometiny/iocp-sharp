@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using IocpSharp.Http.Streams;
+using IocpSharp.Http.Utils;
 
 namespace IocpSharp.Http.Responsers
 {
@@ -15,10 +16,23 @@ namespace IocpSharp.Http.Responsers
     {
         private FileInfo _file = null;
         private string _mime = null;
-        public HttpResourceResponser(FileInfo file, string mime) : base(200)
+        public HttpResourceResponser(string file) : this(new FileInfo(file))
+        {}
+        public HttpResourceResponser(FileInfo file) : base(200)
         {
+            string mimeType = MimeTypes.GetMimeType(file.Extension);
+
+            if (string.IsNullOrEmpty(mimeType))
+            {
+                throw new HttpResponseException($"请求的资源不存在。", 404);
+            }
+
+            if (!file.Exists)
+            {
+                throw new HttpResponseException($"请求的资源不存在。", 404);
+            }
             _file = file;
-            _mime = mime;
+            _mime = mimeType;
         }
 
         protected override string GetAllHeaders(StringBuilder sb)

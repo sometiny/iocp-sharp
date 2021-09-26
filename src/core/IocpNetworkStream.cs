@@ -129,7 +129,7 @@ namespace IocpSharp
 
             //如果同步调用了EndRead，等待IAsyncResult完成
             //不建议同步调用。
-            if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
+            if (!result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
             //失败，抛出异常
             if (result.Exception != null) throw result.Exception;
@@ -202,7 +202,7 @@ namespace IocpSharp
         {
             if (asyncResult is not IocpReadWriteResult result) throw new InvalidOperationException("asyncResult");
 
-            if (result.IsCompleted) result.AsyncWaitHandle.WaitOne();
+            if (!result.IsCompleted) result.AsyncWaitHandle.WaitOne();
 
             if (result.Exception != null) throw result.Exception;
         }

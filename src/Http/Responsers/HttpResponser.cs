@@ -59,5 +59,7 @@ namespace IocpSharp.Http.Responsers
             get => _headers["Server"];
             set => _headers["Server"] = value;
         }
+
+        internal protected virtual void BeforeWriteHeader(HttpRequest request) { }
     }
 }
