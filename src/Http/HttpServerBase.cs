@@ -119,6 +119,7 @@ namespace IocpSharp.Http
         }
         protected void Next(HttpRequest request, HttpResponser response)
         {
+            response.KeepAlive = request.Connection != "close";
             request.BaseStream.Commit(response).ContinueWith(task =>
             {
                 if (task.Exception != null)
@@ -127,7 +128,7 @@ namespace IocpSharp.Http
                     return;
                 }
                 using Stream _ = response.OpenWrite();
-                if (!string.IsNullOrEmpty(response.TransferEncoding) && response.TransferEncoding.ToLower() == "chunked")
+                if (response.IsChunked)
                 {
                     request.BaseStream.Write(_endingChunk, 0, 5);
                 }

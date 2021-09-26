@@ -46,7 +46,7 @@ namespace IocpSharp.Http.Responsers
             }
             set
             {
-                Connection = KeepAlive ? "keep-alive" : "close";
+                Connection = KeepAlive ? null : "close";
             }
         }
 

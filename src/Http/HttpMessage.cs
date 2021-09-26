@@ -177,6 +177,7 @@ namespace IocpSharp.Http
 
             //获取Transfer-Encoding
             _transferEncoding = _headers["transfer-encoding"];
+            if (_transferEncoding != null) _transferEncoding = _transferEncoding.ToLower();
 
             //解析Content-Type
             ParseContentType(_headers["content-type"]);
@@ -212,6 +213,8 @@ namespace IocpSharp.Http
         public bool IsMultipart => _contentType != null && _contentType.Value == "multipart/form-data" && !string.IsNullOrEmpty(_contentType["boundary"]);
         public string Boundary => _contentType == null ? null : _contentType["boundary"];
 
+        public bool IsChunked => _transferEncoding != null && _transferEncoding == "chunked";
+
         /// <summary>
         /// 读取和设置TransferEncoding标头
         /// </summary>
@@ -226,10 +229,11 @@ namespace IocpSharp.Http
                     _headers.Remove("Transfer-Encoding");
                     return;
                 }
-                if (value.ToLower() != "chunked") throw new HttpHeaderException(HttpHeaderError.UnknownTransferEncoding);
+                string encoding = value.ToLower();
+                if (encoding != "chunked") throw new HttpHeaderException(HttpHeaderError.UnknownTransferEncoding);
 
-                _transferEncoding = value;
-                _headers["Transfer-Encoding"] = value;
+                _transferEncoding = encoding;
+                _headers["Transfer-Encoding"] = encoding;
             }
         }
 
