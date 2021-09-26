@@ -16,13 +16,13 @@ namespace IocpSharp.Http.Responsers
         public HttpErrorResponser(string message, int statusCode) : base(message, statusCode)
         {
         }
-        protected override string GetAllHeaders(StringBuilder sb)
+        protected internal override Task<Stream> CommitTo(HttpRequest request)
         {
             if (StatusCode >= 400 && StatusCode != 404)
             {
                 KeepAlive = false;
             }
-            return base.GetAllHeaders(sb);
+            return base.CommitTo(request);
         }
     }
 }

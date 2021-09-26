@@ -17,7 +17,7 @@ namespace IocpSharp.Http.Responsers
         private FileInfo _file = null;
         private string _mime = null;
         public HttpResourceResponser(string file) : this(new FileInfo(file))
-        {}
+        { }
         public HttpResourceResponser(FileInfo file) : base(200)
         {
             string mimeType = MimeTypes.GetMimeType(file.Extension);
@@ -35,24 +35,21 @@ namespace IocpSharp.Http.Responsers
             _mime = mimeType;
         }
 
-        protected override string GetAllHeaders(StringBuilder sb)
-        {
-            ContentType = _mime;
-            ContentLength = _file.Length;
-
-            return base.GetAllHeaders(sb);
-        }
-
-
         public override Stream OpenWrite()
         {
             Stream output = base.OpenWrite();
-
             using (Stream input = _file.OpenRead())
             {
                 input.CopyTo(output);
             }
             return output;
+        }
+
+        protected internal override Task<Stream> CommitTo(HttpRequest request)
+        {
+            ContentType = _mime;
+            ContentLength = _file.Length;
+            return base.CommitTo(request);
         }
     }
 }

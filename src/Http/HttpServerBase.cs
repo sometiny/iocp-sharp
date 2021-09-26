@@ -124,15 +124,14 @@ namespace IocpSharp.Http
         protected void Next(HttpRequest request, HttpResponser response)
         {
             response.KeepAlive = request.Connection != "close";
-            response.BeforeWriteHeader(request);
-            request.BaseStream.Commit(response).ContinueWith(task =>
+            response.CommitTo(request).ContinueWith(task =>
             {
                 if (task.Exception != null)
                 {
                     EndProcessRequest(request);
                     return;
                 }
-                using Stream _ = response.OpenWrite();
+                task.Result?.Close();
                 if (response.IsChunked)
                 {
                     request.BaseStream.Write(_endingChunk, 0, 5);

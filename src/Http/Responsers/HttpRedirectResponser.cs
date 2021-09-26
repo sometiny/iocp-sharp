@@ -21,10 +21,10 @@ namespace IocpSharp.Http.Responsers
         {
             _location = location ?? throw new ArgumentNullException("location");
         }
-        protected override string GetAllHeaders(StringBuilder sb)
+        protected internal override Task<Stream> CommitTo(HttpRequest request)
         {
             SetHeader("Location", _location);
-            return base.GetAllHeaders(sb);
+            return base.CommitTo(request);
         }
     }
 }

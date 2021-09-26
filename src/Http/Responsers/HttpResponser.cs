@@ -60,6 +60,13 @@ namespace IocpSharp.Http.Responsers
             set => _headers["Server"] = value;
         }
 
-        internal protected virtual void BeforeWriteHeader(HttpRequest request) { }
+        internal protected virtual Task<Stream> CommitTo(HttpRequest request)
+        {
+            return request.BaseStream.Commit(this).ContinueWith(task =>
+            {
+                if (task.Exception != null) throw task.Exception.GetBaseException();
+                return OpenWrite();
+            });
+        }
     }
 }
