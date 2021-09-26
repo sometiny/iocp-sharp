@@ -189,11 +189,24 @@ namespace IocpSharp.WebSocket
             return meta;
         }
 
+        public static Task<Frame> NextFrameAsync(Stream baseStream)
+        {
+            byte[] buffer = new byte[2];
+            return ReadPackageAsync(baseStream, buffer, 0, 2).ContinueWith(task =>
+            {
+                if (task.Exception != null) throw task.Exception.GetBaseException();
+                return GetFrame(baseStream, buffer);
+            });
+        }
+
         public static Frame NextFrame(Stream baseStream)
         {
             byte[] buffer = new byte[2];
             ReadPackage(baseStream, buffer, 0, 2);
-
+            return GetFrame(baseStream, buffer);
+        }
+        public static Frame GetFrame(Stream baseStream, byte[] buffer)
+        {
             Frame frame = new Frame();
 
             //处理第一字节
@@ -242,8 +255,8 @@ namespace IocpSharp.WebSocket
 
             //把保存长度的2或8字节读出来即可
             //如果有掩码，需要继续读4个字节的掩码
-            buffer = frame.Mask 
-                ? new byte[frame.PayloadLengthBytesCount + 4] 
+            buffer = frame.Mask
+                ? new byte[frame.PayloadLengthBytesCount + 4]
                 : new byte[frame.PayloadLengthBytesCount];
 
             //读取Payload长度数据和掩码（如果有的话）
@@ -293,6 +306,18 @@ namespace IocpSharp.WebSocket
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        private static async Task ReadPackageAsync(Stream source, byte[] buffer, int offset, int size)
+        {
+            int received = 0;
+            int rec;
+            while ((rec = await source.ReadAsync(buffer, offset + received, size - received)) > 0)
+            {
+                received += rec;
+                if (received == size) return;
+            }
+            if (received != size) throw new IOException("流被关闭，数据无法完整读取");
         }
 
         /// <summary>

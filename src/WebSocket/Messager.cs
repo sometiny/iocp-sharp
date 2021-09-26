@@ -35,7 +35,7 @@ namespace IocpSharp.WebSocket
             try
             {
                 OnConnected();
-                ProcessFrame();
+                NextMessage();
             }
             catch
             {
@@ -159,85 +159,93 @@ namespace IocpSharp.WebSocket
             response.OpenWrite(_baseStream);
         }
 
-        private void ProcessFrame()
+        private void End()
         {
-            while (true)
-            {
-                Frame frame;
-                try
-                {
-                    frame = Frame.NextFrame(_baseStream);
-                }
-                catch (IOException)
-                {
-                    _baseStream.Close();
-                    OnDisconnected();
-                    return;
-                }
-                OnNewFrame(frame);
-                //读出所有Payload
-                byte[] payload = null;
-                if (frame.OpCode != OpCode.Binary)
-                {
-                    using Stream input = Frame.OpenRead(frame, _baseStream);
-                    payload = StreamUtils.ReadAllBytes(input);
-                }
-
-                //收到关闭帧，需要必要情况下需要向客户端回复一个关闭帧。
-                //关闭帧比较特殊，客户端可能会发送状态码或原因给服务器
-                //可以从payload里面把状态码和原因分析出来
-                //前两个字节位状态码，unsigned int；紧跟着状态码的是原因。
-                if (frame.OpCode == OpCode.Close)
-                {
-                    int code = 0;
-                    string reason = null;
-
-                    if (payload.Length >= 2)
-                    {
-                        code = payload[0] << 8 | payload[1];
-                        reason = Encoding.UTF8.GetString(payload, 2, payload.Length - 2);
-                    }
-
-                    OnCloseInternal(code, reason);
-                    break;
-                }
-
-                if (frame.OpCode == OpCode.Ping)
-                {
-                    OnPingInternal(payload);
-                    continue;
-                }
-
-                if (frame.OpCode == OpCode.Pong)
-                {
-                    continue;
-                }
-
-                if (frame.OpCode == OpCode.Binary)
-                {
-                    using Stream input = Frame.OpenRead(frame, _baseStream);
-                    OnBinary(input);
-                    ///把流清空，确保没有脏数组
-                    StreamUtils.Clear(input);
-                    continue;
-                }
-
-                if (frame.OpCode == OpCode.Text)
-                {
-                    OnText(Encoding.UTF8.GetString(payload));
-                    continue;
-                }
-
-                //收到其他任何OpCode，退出，借用RFC原文
-                //1003 indicates that an endpoint is terminating the connection
-                //because it has received a type of data it cannot accept(e.g., an
-                //endpoint that understands only text data MAY send this if it
-                //receives a binary message).
-                OnCloseInternal(1003, "Unknown Message Type");
-                break;
-            }
             _baseStream.Close();
             OnDisconnected();
+        }
+
+
+        private void NextMessage()
+        {
+            Frame.NextFrameAsync(_baseStream).ContinueWith(task => { 
+                if(task.Exception!=null)
+                {
+                    End();
+                    return;
+                }
+                if (!ProcessMessage(task.Result))
+                {
+                    End();
+                    return;
+                }
+                NextMessage();
+            });
+        }
+
+        private bool ProcessMessage(Frame frame)
+        {
+            OnNewFrame(frame);
+            //读出所有Payload
+            byte[] payload = null;
+            if (frame.OpCode != OpCode.Binary)
+            {
+                using Stream input = Frame.OpenRead(frame, _baseStream);
+                payload = StreamUtils.ReadAllBytes(input);
+            }
+
+            //收到关闭帧，需要必要情况下需要向客户端回复一个关闭帧。
+            //关闭帧比较特殊，客户端可能会发送状态码或原因给服务器
+            //可以从payload里面把状态码和原因分析出来
+            //前两个字节位状态码，unsigned int；紧跟着状态码的是原因。
+            if (frame.OpCode == OpCode.Close)
+            {
+                int code = 0;
+                string reason = null;
+
+                if (payload.Length >= 2)
+                {
+                    code = payload[0] << 8 | payload[1];
+                    reason = Encoding.UTF8.GetString(payload, 2, payload.Length - 2);
+                }
+
+                OnCloseInternal(code, reason);
+                return false;
+            }
+
+            if (frame.OpCode == OpCode.Ping)
+            {
+                OnPingInternal(payload);
+                return true;
+            }
+
+            if (frame.OpCode == OpCode.Pong)
+            {
+                return true;
+            }
+
+            if (frame.OpCode == OpCode.Binary)
+            {
+                using Stream input = Frame.OpenRead(frame, _baseStream);
+                OnBinary(input);
+                ///把流清空，确保没有脏数组
+                StreamUtils.Clear(input);
+                return true;
+            }
+
+            if (frame.OpCode == OpCode.Text)
+            {
+                OnText(Encoding.UTF8.GetString(payload));
+                return true;
+            }
+
+            //收到其他任何OpCode，退出，借用RFC原文
+            //1003 indicates that an endpoint is terminating the connection
+            //because it has received a type of data it cannot accept(e.g., an
+            //endpoint that understands only text data MAY send this if it
+            //receives a binary message).
+            OnCloseInternal(1003, "Unknown Message Type");
+            return false;
         }
     }
 }

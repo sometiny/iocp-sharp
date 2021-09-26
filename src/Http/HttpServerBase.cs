@@ -258,15 +258,21 @@ namespace IocpSharp.Http
             HttpResponser responser = new HttpResponser(101);
             responser.Connection = "Upgrade";
             responser.Upgrade = "websocket";
-            responser.KeepAlive = false;
 
             //设置Sec-WebSocket-Accept头
             responser.SetHeader("Sec-WebSocket-Accept", secWebSocketAcceptKey);
+            request.BaseStream.CommitAsync(responser).ContinueWith((task, state)=> {
 
-            request.BaseStream.Commit(responser);
-            //开始WebSocket消息的接收和发送
-            Messager messager = GetMessager(request);
-            if (messager != null) messager.Accept();
+                HttpRequest req = state as HttpRequest;
+                if (task.Exception != null)
+                {
+                    EndProcessRequest(req);
+                    return;
+                }
+                //开始WebSocket消息的接收和发送
+                Messager messager = GetMessager(req, req.BaseStream);
+                if (messager != null) messager.Accept();
+            }, request);
             return true;
         }
 
@@ -275,8 +281,8 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="request"></param>
         /// <param name="stream"></param>
-        protected virtual Messager GetMessager(HttpRequest request) {
-            request.BaseStream?.Close();
+        protected virtual Messager GetMessager(HttpRequest request, HttpStream baseStream) {
+            baseStream?.Close();
             return null;
         }
     }

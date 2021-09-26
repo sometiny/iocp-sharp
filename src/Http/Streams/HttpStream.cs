@@ -57,6 +57,19 @@ namespace IocpSharp.Http.Streams
         }
 
         /// <summary>
+        /// 提交一个消息发送请求，并返回输入流
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public Task CommitAsync(HttpMessage message)
+        {
+            message.BaseStream = this;
+            byte[] buffer = Encoding.UTF8.GetBytes(message.GetAllHeaders());
+
+            return WriteAsync(buffer, 0, buffer.Length);
+        }
+
+        /// <summary>
         /// 获取一个HTTP消息（请求或响应）
         /// </summary>
         /// <typeparam name="T"></typeparam>
