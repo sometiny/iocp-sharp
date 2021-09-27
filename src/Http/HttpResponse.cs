@@ -127,9 +127,9 @@ namespace IocpSharp.Http
         /// 读取下一个响应
         /// </summary>
         /// <returns></returns>
-        public Task<HttpResponse> Next()
+        public void Next(HttpMessageReadCallback<HttpResponse> callback, object state)
         {
-            return Next<HttpResponse>();
+            Next<HttpResponse>(callback, state);
         }
 
         private Stream _entityReadStream = null;

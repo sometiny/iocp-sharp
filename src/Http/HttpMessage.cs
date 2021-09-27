@@ -364,12 +364,12 @@ namespace IocpSharp.Http
             //读取，丢弃
             while (forward.Read(forwardBytes, 0, 32768) > 0) ;
         }
-        internal Task<T> Next<T>() where T : HttpMessage, new()
+        internal void Next<T>(HttpMessageReadCallback<T> callback, object state) where T : HttpMessage, new()
         {
             try
             {
                 EnsureEntityBodyRead();
-                return _baseStream.CaptureNext<T>();
+                _baseStream.CaptureNext<T>(callback, state);
             }
             finally
             {

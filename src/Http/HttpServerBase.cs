@@ -139,7 +139,7 @@ namespace IocpSharp.Http
                     EndProcessRequest(request);
                     return;
                 }
-                request.Next().ContinueWith(AfterReceiveHttpMessage);
+                request.Next(AfterReceiveHttpMessage, null);
             }
             catch
             {
@@ -147,11 +147,8 @@ namespace IocpSharp.Http
             }
         }
 
-        private void AfterReceiveHttpMessage(Task<HttpRequest> task)
+        private void AfterReceiveHttpMessage(Exception e, HttpRequest request, object state)
         {
-            Exception e = task.Exception?.GetBaseException();
-            HttpRequest request = task.Result;
-
             if (e != null)
             {
                 ProcessRequestException(e, request);
@@ -159,17 +156,14 @@ namespace IocpSharp.Http
                 return;
             }
 
-            if (!ProcessRequest(request))
-            {
-                EndProcessRequest(request);
-            }
+            if (!ProcessRequest(request)) EndProcessRequest(request);
         }
 
         protected override void NewClient(Socket client)
         {
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
 
-            stream.Capture<HttpRequest>().ContinueWith(AfterReceiveHttpMessage);
+            stream.Capture<HttpRequest>(AfterReceiveHttpMessage, null);
         }
 
         /// <summary>

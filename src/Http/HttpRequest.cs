@@ -206,9 +206,9 @@ namespace IocpSharp.Http
         /// 读取下一个请求
         /// </summary>
         /// <returns></returns>
-        public Task<HttpRequest> Next()
+        public void Next(HttpMessageReadCallback<HttpRequest> callback, object state)
         {
-            return Next<HttpRequest>();
+            Next<HttpRequest>(callback, state);
         }
         protected override void Dispose(bool disposing)
         {
