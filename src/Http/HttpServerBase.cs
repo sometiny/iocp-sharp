@@ -69,15 +69,14 @@ namespace IocpSharp.Http
             {
                 if (httpHeaderException.Error == HttpHeaderError.ConnectionLost)
                 {
+                    EndRequest(request);
                     return;
                 }
                 //客户端发送的请求异常
                 Next(request, new HttpErrorResponser($"请求异常：{httpHeaderException.Error}", 400));
+                return;
             }
-            else
-            {
-                Next(request, new HttpErrorResponser($"请求异常：{e}", 500));
-            }
+            Next(request, new HttpErrorResponser($"请求异常：{e}", 500));
         }
 
         /// <summary>
@@ -85,22 +84,18 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        private bool ProcessRequest(HttpRequest request)
+        private void ProcessRequest(HttpRequest request)
         {
-
-            if (request == null) return false;
+            if (!request.IsWebSocket)
+            {
+                NewRequest(request);
+                return;
+            }
 
             //如果是WebSocket，调用相应的处理方法
-            if (request.IsWebSocket)
-            {
-                if (!OnWebSocketInternal(request))
-                {
-                    return false;
-                }
-                return true;
-            }
-            NewRequest(request);
-            return true;
+            if (OnWebSocketInternal(request)) return;
+
+            EndRequest(request);
         }
 
         /// <summary>
@@ -137,7 +132,6 @@ namespace IocpSharp.Http
         /// <param name="response">响应</param>
         protected void Next(HttpRequest request, HttpResponser response)
         {
-            response.KeepAlive = request.Connection != "close";
             try
             {
                 Stream output = response.CommitTo(request);
@@ -148,7 +142,9 @@ namespace IocpSharp.Http
                     request.BaseStream.Write(_endingChunk, 0, 5);
                 }
                 //超过单连接处理请求数，停止后续处理。
-                if (!response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
+                //请求不是KeepAlive，停止后续处理
+                //响应不是KeepAlive，停止后续处理
+                if (!request.KeepAlive || !response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
                 {
                     EndRequest(request);
                     return;
@@ -172,11 +168,10 @@ namespace IocpSharp.Http
             if (e != null)
             {
                 ProcessRequestException(e, request);
-                EndRequest(request);
                 return;
             }
 
-            if (!ProcessRequest(request)) EndRequest(request);
+            ProcessRequest(request);
         }
 
         /// <summary>

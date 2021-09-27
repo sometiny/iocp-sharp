@@ -42,6 +42,20 @@ namespace IocpSharp.Http
         internal HttpStream BaseStream { get => _baseStream; set => _baseStream = value; }
 
         /// <summary>
+        /// 设置或获取Keep-Alive
+        /// </summary>
+        public bool KeepAlive
+        {
+            get
+            {
+                return Connection == null || Connection.ToLower() != "close";
+            }
+            set
+            {
+                Connection = KeepAlive ? null : "close";
+            }
+        }
+        /// <summary>
         /// 设置或获取Connection
         /// </summary>
         public string Connection

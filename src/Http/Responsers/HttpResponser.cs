@@ -39,18 +39,6 @@ namespace IocpSharp.Http.Responsers
 
         }
 
-        public bool KeepAlive
-        {
-            get
-            {
-                return Connection == null || Connection.ToLower() != "close";
-            }
-            set
-            {
-                Connection = KeepAlive ? null : "close";
-            }
-        }
-
         public bool Chunked
         {
             set => TransferEncoding = value ? "chunked" : null;

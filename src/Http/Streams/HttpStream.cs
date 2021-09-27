@@ -135,16 +135,26 @@ namespace IocpSharp.Http.Streams
             }
         }
 
+        /// <summary>
+        /// 读取到数据行的回调
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="args"></param>
+        /// <param name="line"></param>
         private void AfterReadLine<T>(HttpMessageReadArgs<T> args, string line) where T : HttpMessage, new()
         {
             try
             {
                 HttpMessage message = args.Message;
+
+                //解析每一行
                 if (message.ParseLine(line))
                 {
                     args.Complete();
                     return;
                 }
+
+                //如果没有解析到尾行，继续读取下一行
                 ReadLineAsync(args);
             }
             catch (Exception ex)
@@ -152,6 +162,12 @@ namespace IocpSharp.Http.Streams
                 args.SetFailed(ex);
             }
         }
+
+        /// <summary>
+        /// 从基础流读取缓冲数据。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="asyncResult"></param>
         private void AfterReadBuffer<T>(IAsyncResult asyncResult) where T: HttpMessage,new() {
             HttpMessageReadArgs<T> args = asyncResult.AsyncState as HttpMessageReadArgs<T>;
 
@@ -171,10 +187,18 @@ namespace IocpSharp.Http.Streams
                 args.SetFailed(e);
             }
         }
+
+        /// <summary>
+        /// 读取一行数据
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="args"></param>
         private void ReadLineAsync<T>(HttpMessageReadArgs<T> args) where T : HttpMessage, new()
         {
             int offset = _offset;
             byte chr;
+
+            //没有数据时，从基础流读取数据
             if (_length == 0)
             {
                 if (_buffer == null) _buffer = new byte[32768];
@@ -202,24 +226,30 @@ namespace IocpSharp.Http.Streams
                     return;
                 }
             }
+
+            //重置缓冲区
             if(_offset > 0)
             {
                 Buffer.BlockCopy(_buffer, _offset, _buffer, 0, _length);
                 _offset = 0;
             }
             
+            //数据超过指定长度
             if(_length == _buffer.Length)
             {
                 args.SetFailed(new HttpHeaderException(HttpHeaderError.LineLengthExceedsLimit));
                 return;
             }
-            _innerStream.BeginRead(_buffer, _offset + _length, _buffer.Length - _offset - _length, AfterReadBuffer<T>, args);
+
+            //从基础流读取数据，尽可能填满缓冲区
+            _innerStream.BeginRead(_buffer, _length, _buffer.Length - _length, AfterReadBuffer<T>, args);
         }
 
         private byte[] _buffer = null;
         private int _offset = 0;
         private int _length = 0;
-        
+
+        #region 重写Read/Write
         /// <summary>
         /// 从基础流读取一个字节，优先清空缓冲区
         /// </summary>
@@ -361,6 +391,8 @@ namespace IocpSharp.Http.Streams
             _length -= count;
             return count;
         }
+
+        #endregion
 
 
         protected override void Dispose(bool disposing)
