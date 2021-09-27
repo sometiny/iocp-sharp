@@ -157,15 +157,20 @@ namespace IocpSharp.Server
             Socket client = AcceptSocket;
             StartAccept();
             client.NoDelay = true;
+            NewClientInternal(client);
+        }
 
+        /// <summary>
+        /// 重载NewClientInternal，可以不使用线程池来处理请求，默认使用线程池处理。
+        /// </summary>
+        /// <param name="client"></param>
+        protected void NewClientInternal(Socket client)
+        {
             /*
              * 使用新线程处理新的连接请求
              * 使用IOCP可一定程度上提升性能
              */
-            ThreadPool.UnsafeQueueUserWorkItem(state =>
-            {
-                NewClient(state as Socket);
-            }, client);
+            ThreadPool.UnsafeQueueUserWorkItem(state => NewClient(state as Socket), client);
         }
 
         /// <summary>

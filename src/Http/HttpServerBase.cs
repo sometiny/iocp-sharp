@@ -104,7 +104,7 @@ namespace IocpSharp.Http
         /// <param name="request"></param>
         protected virtual void NewRequest(HttpRequest request)
         {
-            //尝试查找路由，不存在的话使用NotFound路由
+            //尝试查找路由
             if (!_routes.TryGetValue(request.Path, out Action<HttpRequest> handler))
             {
                 //未匹配到路由，统一当文件资源处理
