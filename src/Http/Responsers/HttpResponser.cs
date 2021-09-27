@@ -96,6 +96,11 @@ namespace IocpSharp.Http.Responsers
         }
 
         #region 同步输出数据到客户端的一些列方法 
+
+        /// <summary>
+        /// 获取输出流，打开输出流前会将请求头部写入客户端
+        /// </summary>
+        /// <returns></returns>
         private Stream GetResponseStream()
         {
             if (BaseStream == null) throw new InvalidOperationException();
@@ -112,26 +117,49 @@ namespace IocpSharp.Http.Responsers
             return base.OpenWrite();
         }
 
+        /// <summary>
+        /// 写入二进制数据
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="count"></param>
         public void Write(byte[] buffer, int offset, int count)
         {
             Stream stream = GetResponseStream();
             stream.Write(buffer, offset, count);
         }
 
+        /// <summary>
+        /// 写入二进制数据
+        /// </summary>
+        /// <param name="buffer"></param>
         public void Write(byte[] buffer)
         {
             Write(buffer, 0, buffer.Length);
         }
 
+        /// <summary>
+        /// 写入文本数据
+        /// </summary>
+        /// <param name="message"></param>
         public void Write(string message)
         {
             Write(message, Encoding.UTF8);
         }
 
+        /// <summary>
+        /// 写入文本数据
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="encoding"></param>
         public void Write(string message, Encoding encoding) {
             Write(encoding.GetBytes(message));
         }
 
+        /// <summary>
+        /// 写入数据流
+        /// </summary>
+        /// <param name="input"></param>
         public void Write(Stream input)
         {
             Stream stream = GetResponseStream();
