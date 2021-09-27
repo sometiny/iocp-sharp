@@ -24,6 +24,18 @@ namespace IocpSharp
         public BufferedNetworkStream(Socket baseSocket, bool ownSocket) : base(baseSocket, ownSocket) { }
 
         /// <summary>
+        /// 是否将读到的数据消费掉（默认消费）。
+        /// 可以实现在同一个端口处理不同协议，例如：同时处理Socks5和HTTP协议，因为两者有明显的协议区别（例如第一个字节的差异）。
+        /// </summary>
+        private bool _consume = true;
+        public bool Consume
+        {
+            get => _consume;
+            set => _consume = value;
+        }
+
+
+        /// <summary>
         /// 定义变量，标识当前流是否在Buffered模式下运行
         /// 默认为true
         /// 我们可以适时关闭buffered模式
@@ -61,6 +73,8 @@ namespace IocpSharp
         {
             if (_length > 0)
             {
+                if (!_consume) return _buffer[_offset];
+
                 _length--;
                 return _buffer[_offset++];
             }
@@ -190,6 +204,8 @@ namespace IocpSharp
 
             //从缓冲区拷贝数据到应用
             Array.Copy(_buffer, _offset, buffer, offset, size);
+
+            if (!_consume) return size;
 
             //数据拷贝完成，移动偏移，修改缓冲区的可能数据长度
             _offset += size;
