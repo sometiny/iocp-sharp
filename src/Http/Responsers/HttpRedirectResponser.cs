@@ -20,11 +20,7 @@ namespace IocpSharp.Http.Responsers
         public HttpRedirectResponser(string location, string message, int statusCode) : base(message, statusCode)
         {
             _location = location ?? throw new ArgumentNullException("location");
-        }
-        protected internal override Stream CommitTo(HttpRequest request)
-        {
             SetHeader("Location", _location);
-            return base.CommitTo(request);
         }
     }
 }

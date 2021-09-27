@@ -132,10 +132,14 @@ namespace IocpSharp.Http
         /// <param name="response">响应</param>
         protected void Next(HttpRequest request, HttpResponser response)
         {
-            try
+            response.Commit(request).ContinueWith(task =>
             {
-                Stream output = response.CommitTo(request);
-
+                if (task.Exception != null)
+                {
+                    EndRequest(request);
+                    return;
+                }
+                Stream output = task.Result;
                 output?.Close();
                 if (response.IsChunked)
                 {
@@ -150,11 +154,7 @@ namespace IocpSharp.Http
                     return;
                 }
                 request.Next(AfterReceiveHttpMessage, null);
-            }
-            catch
-            {
-                EndRequest(request);
-            }
+            });
         }
 
         /// <summary>

@@ -48,11 +48,12 @@ namespace IocpSharp.Http.Responsers
             get => _headers["Server"];
             set => _headers["Server"] = value;
         }
-
-        internal protected virtual Stream CommitTo(HttpRequest request)
+        internal protected virtual Task<Stream> Commit(HttpRequest request)
         {
-            request.BaseStream.Commit(this);
-            return base.OpenWrite();
+            return request
+                .BaseStream
+                .CommitAsync(this)
+                .ContinueWith(task => task.Exception == null ? OpenWrite() : throw task.Exception.GetBaseException());
         }
     }
 }

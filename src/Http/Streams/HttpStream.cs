@@ -97,10 +97,17 @@ namespace IocpSharp.Http.Streams
         /// <returns></returns>
         public Task CommitAsync(HttpMessage message)
         {
-            message.BaseStream = this;
-            byte[] buffer = Encoding.UTF8.GetBytes(message.GetAllHeaders());
+            try
+            {
+                message.BaseStream = this;
+                byte[] buffer = Encoding.UTF8.GetBytes(message.GetAllHeaders());
 
-            return WriteAsync(buffer, 0, buffer.Length);
+                return WriteAsync(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                return Task.FromException(ex);
+            }
         }
 
         /// <summary>
