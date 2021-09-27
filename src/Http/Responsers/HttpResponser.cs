@@ -13,7 +13,20 @@ namespace IocpSharp.Http.Responsers
     /// </summary>
     public class HttpResponser : HttpResponse
     {
-        public HttpResponser() : base(200) { }
+        private bool _headerWritten = false;
+
+        internal bool HeaderWritten => _headerWritten;
+
+        public static HttpResponser Create(HttpRequest request) {
+            return new HttpResponser(200) { BaseStream = request.BaseStream };
+        }
+
+        public static HttpResponser Create(HttpRequest request, int statusCode)
+        {
+            return new HttpResponser(statusCode) { BaseStream = request.BaseStream };
+        }
+
+        public HttpResponser() : this(200) { }
 
         public HttpResponser(int statusCode) : base(statusCode)
         {
@@ -41,6 +54,7 @@ namespace IocpSharp.Http.Responsers
 
         public bool Chunked
         {
+            get => TransferEncoding == "chunked";
             set => TransferEncoding = value ? "chunked" : null;
         }
         public string Server
@@ -48,12 +62,61 @@ namespace IocpSharp.Http.Responsers
             get => _headers["Server"];
             set => _headers["Server"] = value;
         }
+        public override Stream OpenRead() => throw new NotSupportedException();
+
+        public override Stream OpenWrite()
+        {
+            return BaseStream == null ? throw new InvalidOperationException() : base.OpenWrite();
+        }
+
         internal protected virtual Task<Stream> Commit(HttpRequest request)
         {
             return request
                 .BaseStream
                 .CommitAsync(this)
                 .ContinueWith(task => task.Exception == null ? OpenWrite() : throw task.Exception.GetBaseException());
+        }
+
+        private Stream GetResponseStream()
+        {
+            if (BaseStream == null) throw new InvalidOperationException();
+
+            if (!_headerWritten)
+            {
+                Chunked = true;
+                ContentLength = -1;
+                byte[] buffer = Encoding.UTF8.GetBytes(GetAllHeaders());
+
+                BaseStream.Write(buffer, 0, buffer.Length);
+                _headerWritten = true;
+            }
+            return base.OpenWrite();
+        }
+
+        public void Write(byte[] buffer, int offset, int count)
+        {
+            Stream stream = GetResponseStream();
+            stream.Write(buffer, offset, count);
+        }
+
+        public void Write(byte[] buffer)
+        {
+            Write(buffer, 0, buffer.Length);
+        }
+
+        public void Write(string message)
+        {
+            Write(message, Encoding.UTF8);
+        }
+
+        public void Write(string message, Encoding encoding) {
+            Write(encoding.GetBytes(message));
+        }
+
+        public void Write(Stream input)
+        {
+            Stream stream = GetResponseStream();
+            input.CopyTo(stream);
         }
     }
 }

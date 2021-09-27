@@ -132,6 +132,11 @@ namespace IocpSharp.Http
         /// <param name="response">响应</param>
         protected void Next(HttpRequest request, HttpResponser response)
         {
+            if (response.HeaderWritten)
+            {
+                InternalNext(request, response, response.OpenWrite());
+                return;
+            }
             response.Commit(request).ContinueWith(task =>
             {
                 if (task.Exception != null)
@@ -139,22 +144,26 @@ namespace IocpSharp.Http
                     EndRequest(request);
                     return;
                 }
-                Stream output = task.Result;
-                output?.Close();
-                if (response.IsChunked)
-                {
-                    request.BaseStream.Write(_endingChunk, 0, 5);
-                }
-                //超过单连接处理请求数，停止后续处理。
-                //请求不是KeepAlive，停止后续处理
-                //响应不是KeepAlive，停止后续处理
-                if (!request.KeepAlive || !response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
-                {
-                    EndRequest(request);
-                    return;
-                }
-                request.Next(AfterReceiveHttpMessage, null);
+                InternalNext(request, response, task.Result);
             });
+        }
+        
+        private void InternalNext(HttpRequest request, HttpResponser response, Stream output)
+        {
+            output?.Close();
+            if (response.IsChunked)
+            {
+                request.BaseStream.Write(_endingChunk, 0, 5);
+            }
+            //超过单连接处理请求数，停止后续处理。
+            //请求不是KeepAlive，停止后续处理
+            //响应不是KeepAlive，停止后续处理
+            if (!request.KeepAlive || !response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
+            {
+                EndRequest(request);
+                return;
+            }
+            request.Next(AfterReceiveHttpMessage, null);
         }
 
         /// <summary>
@@ -178,7 +187,7 @@ namespace IocpSharp.Http
         /// 新客户端
         /// </summary>
         /// <param name="client"></param>
-        protected sealed override void NewClient(Socket client)
+        protected override void NewClient(Socket client)
         {
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
 

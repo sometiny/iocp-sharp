@@ -134,7 +134,7 @@ namespace IocpSharp.Http.Streams
 
             try
             {
-                ReadLineAsync(args);
+                ReadLine(args);
             }
             catch (Exception e)
             {
@@ -162,7 +162,7 @@ namespace IocpSharp.Http.Streams
                 }
 
                 //如果没有解析到尾行，继续读取下一行
-                ReadLineAsync(args);
+                ReadLine(args);
             }
             catch (Exception ex)
             {
@@ -187,7 +187,7 @@ namespace IocpSharp.Http.Streams
                     return;
                 }
                 _length += rec;
-                ReadLineAsync(args);
+                ReadLine(args);
             }
             catch(Exception e)
             {
@@ -200,7 +200,7 @@ namespace IocpSharp.Http.Streams
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="args"></param>
-        private void ReadLineAsync<T>(HttpMessageReadArgs<T> args) where T : HttpMessage, new()
+        private void ReadLine<T>(HttpMessageReadArgs<T> args) where T : HttpMessage, new()
         {
             int offset = _offset;
             byte chr;
