@@ -17,17 +17,35 @@ namespace IocpSharp.Http.Responsers
 
         internal bool HeaderWritten => _headerWritten;
 
+        /// <summary>
+        /// 从HttpRequest创建HttpResponser，可直接使用Write输出到客户端；
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         public static HttpResponser Create(HttpRequest request) {
             return new HttpResponser(200) { BaseStream = request.BaseStream };
         }
 
+        /// <summary>
+        /// 从HttpRequest创建HttpResponser，可直接使用Write输出到客户端；
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="statusCode"></param>
+        /// <returns></returns>
         public static HttpResponser Create(HttpRequest request, int statusCode)
         {
             return new HttpResponser(statusCode) { BaseStream = request.BaseStream };
         }
 
+        /// <summary>
+        /// 使用默认状态码200实例化新的HttpResponser
+        /// </summary>
         public HttpResponser() : this(200) { }
 
+        /// <summary>
+        /// 使用指定的statusCode实例化新的HttpResponser
+        /// </summary>
+        /// <param name="statusCode"></param>
         public HttpResponser(int statusCode) : base(statusCode)
         {
             ///设定一些基本标头
@@ -77,6 +95,7 @@ namespace IocpSharp.Http.Responsers
                 .ContinueWith(task => task.Exception == null ? OpenWrite() : throw task.Exception.GetBaseException());
         }
 
+        #region 同步输出数据到客户端的一些列方法 
         private Stream GetResponseStream()
         {
             if (BaseStream == null) throw new InvalidOperationException();
@@ -118,5 +137,6 @@ namespace IocpSharp.Http.Responsers
             Stream stream = GetResponseStream();
             input.CopyTo(stream);
         }
+        #endregion
     }
 }

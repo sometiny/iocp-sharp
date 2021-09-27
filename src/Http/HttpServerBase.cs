@@ -132,6 +132,7 @@ namespace IocpSharp.Http
         /// <param name="response">响应</param>
         protected void Next(HttpRequest request, HttpResponser response)
         {
+            //应用已经直接响应客户端，直接继续下一个请求
             if (response.HeaderWritten)
             {
                 InternalNext(request, response, response.OpenWrite());
