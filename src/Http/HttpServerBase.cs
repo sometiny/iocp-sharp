@@ -47,7 +47,12 @@ namespace IocpSharp.Http
             _routes[path] = route;
         }
 
-        private void EndProcessRequest(HttpRequest request) {
+        /// <summary>
+        /// 结束请求，关闭基础流
+        /// </summary>
+        /// <param name="request"></param>
+        private void EndRequest(HttpRequest request)
+        {
 
             request?.BaseStream?.Close();
             request?.Dispose();
@@ -67,12 +72,11 @@ namespace IocpSharp.Http
                     return;
                 }
                 //客户端发送的请求异常
-                OnBadRequest(request, $"请求异常：{httpHeaderException.Error}");
+                Next(request, new HttpErrorResponser($"请求异常：{httpHeaderException.Error}", 400));
             }
             else
             {
-                //其他异常
-                OnServerError(request, $"请求异常：{e}");
+                Next(request, new HttpErrorResponser($"请求异常：{e}", 500));
             }
         }
 
@@ -99,6 +103,10 @@ namespace IocpSharp.Http
             return true;
         }
 
+        /// <summary>
+        /// 捕获到新请求
+        /// </summary>
+        /// <param name="request"></param>
         protected virtual void NewRequest(HttpRequest request)
         {
             //尝试查找路由，不存在的话使用NotFound路由
@@ -118,9 +126,15 @@ namespace IocpSharp.Http
             }
             catch
             {
-                EndProcessRequest(request);
+                EndRequest(request);
             }
         }
+
+        /// <summary>
+        /// 发送响应，处理下一个请求
+        /// </summary>
+        /// <param name="request">当前请求</param>
+        /// <param name="response">响应</param>
         protected void Next(HttpRequest request, HttpResponser response)
         {
             response.KeepAlive = request.Connection != "close";
@@ -136,65 +150,44 @@ namespace IocpSharp.Http
                 //超过单连接处理请求数，停止后续处理。
                 if (!response.KeepAlive || request.BaseStream.CapturedMessage >= MaxRequestPerConnection)
                 {
-                    EndProcessRequest(request);
+                    EndRequest(request);
                     return;
                 }
                 request.Next(AfterReceiveHttpMessage, null);
             }
             catch
             {
-                EndProcessRequest(request);
+                EndRequest(request);
             }
         }
 
+        /// <summary>
+        /// 读取到Http消息
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="request"></param>
+        /// <param name="state"></param>
         private void AfterReceiveHttpMessage(Exception e, HttpRequest request, object state)
         {
             if (e != null)
             {
                 ProcessRequestException(e, request);
-                EndProcessRequest(request);
+                EndRequest(request);
                 return;
             }
 
-            if (!ProcessRequest(request)) EndProcessRequest(request);
+            if (!ProcessRequest(request)) EndRequest(request);
         }
 
-        protected override void NewClient(Socket client)
+        /// <summary>
+        /// 新客户端
+        /// </summary>
+        /// <param name="client"></param>
+        protected sealed override void NewClient(Socket client)
         {
             HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
 
             stream.Capture<HttpRequest>(AfterReceiveHttpMessage, null);
-        }
-
-        /// <summary>
-        /// 响应404错误
-        /// </summary>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        private void OnNotFound(HttpRequest request)
-        {
-            Next(request, new HttpErrorResponser($"请求的资源'{request.Path}'不存在。", 404));
-        }
-
-
-        /// <summary>
-        /// 请求异常
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="message"></param>
-        private void OnBadRequest(HttpRequest request, string message)
-        {
-            Next(request, new HttpErrorResponser(message, 400));
-        }
-
-        /// <summary>
-        /// 服务器异常
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="message"></param>
-        private void OnServerError(HttpRequest request, string message)
-        {
-            Next(request, new HttpErrorResponser(message, 500));
         }
 
         /// <summary>
@@ -204,24 +197,7 @@ namespace IocpSharp.Http
         /// <param name="request"></param>
         private void OnResource(HttpRequest request)
         {
-            string path = request.Path;
-
-            ///处理下非安全的路径
-            if (path.IndexOf("..") >= 0 || !path.StartsWith("/"))
-            {
-                OnBadRequest(request, "不安全的路径访问");
-                return;
-            }
-
-
-            string filePath = Path.GetFullPath(Path.Combine(_webRoot, "." + path));
-            if (filePath.IndexOf(".") == -1)
-            {
-                OnNotFound(request);
-                return;
-            }
-
-            Next(request, new HttpResourceResponser(filePath));
+            Next(request, new HttpResourceResponser(request, _webRoot));
         }
 
         /// <summary>
@@ -233,9 +209,9 @@ namespace IocpSharp.Http
         private bool OnWebSocketInternal(HttpRequest request)
         {
             string webSocketKey = request.Headers["Sec-WebSocket-Key"];
-            if(string.IsNullOrEmpty(webSocketKey))
+            if (string.IsNullOrEmpty(webSocketKey))
             {
-                OnBadRequest(request, "header 'Sec-WebSocket-Key' error");
+                Next(request, new HttpErrorResponser("header 'Sec-WebSocket-Key' error", 400));
                 return false;
             }
 
@@ -255,12 +231,13 @@ namespace IocpSharp.Http
 
             //设置Sec-WebSocket-Accept头
             responser.SetHeader("Sec-WebSocket-Accept", secWebSocketAcceptKey);
-            request.BaseStream.CommitAsync(responser).ContinueWith((task, state)=> {
+            request.BaseStream.CommitAsync(responser).ContinueWith((task, state) =>
+            {
 
                 HttpRequest req = state as HttpRequest;
                 if (task.Exception != null)
                 {
-                    EndProcessRequest(req);
+                    EndRequest(req);
                     return;
                 }
                 //开始WebSocket消息的接收和发送
@@ -275,7 +252,8 @@ namespace IocpSharp.Http
         /// </summary>
         /// <param name="request"></param>
         /// <param name="stream"></param>
-        protected virtual Messager GetMessager(HttpRequest request, HttpStream baseStream) {
+        protected virtual Messager GetMessager(HttpRequest request, HttpStream baseStream)
+        {
             baseStream?.Close();
             return null;
         }

@@ -16,20 +16,34 @@ namespace IocpSharp.Http.Responsers
     {
         private FileInfo _file = null;
         private string _mime = null;
-        public HttpResourceResponser(string file) : this(new FileInfo(file))
-        { }
-        public HttpResourceResponser(FileInfo file) : base(200)
+        public HttpResourceResponser(HttpRequest request, string root)
         {
+            string path = request.Path;
+
+            ///处理下非安全的路径
+            if (path.IndexOf("..") >= 0 || !path.StartsWith("/"))
+            {
+                throw new HttpResponseException("不安全的路径访问", 400);
+            }
+
+
+            string filePath = Path.GetFullPath(Path.Combine(root, "." + path));
+            if (filePath.IndexOf(".") == -1)
+            {
+                throw new HttpResponseException($"请求的资源'{request.Path}'不存在。", 404);
+            }
+
+            var file = new FileInfo(filePath);
             string mimeType = MimeTypes.GetMimeType(file.Extension);
 
             if (string.IsNullOrEmpty(mimeType))
             {
-                throw new HttpResponseException($"请求的资源不存在。", 404);
+                throw new HttpResponseException($"请求的资源'{request.Path}'不存在。", 404);
             }
 
             if (!file.Exists)
             {
-                throw new HttpResponseException($"请求的资源不存在。", 404);
+                throw new HttpResponseException($"请求的资源'{request.Path}'不存在。", 404);
             }
             _file = file;
             _mime = mimeType;
