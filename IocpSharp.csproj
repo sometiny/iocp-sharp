@@ -1,100 +1,41 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{65FFB107-804C-4248-8164-B6154C6AE3A2}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>IocpSharp</RootNamespace>
-    <AssemblyName>IocpSharp</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
-    <LangVersion>latest</LangVersion>
-    <TargetFrameworkProfile />
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup>
-    <StartupObject />
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="src\core\BufferedReadResult.cs" />
-    <Compile Include="src\core\BufferedNetworkStream.cs" />
-    <Compile Include="src\core\IocpReadWriteResult.cs" />
-    <Compile Include="src\core\ISocketBasedStream.cs" />
-    <Compile Include="src\core\AsyncResult.cs" />
-    <Compile Include="src\core\IocpNetworkStream.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="src\Http\HttpContentEncoding.cs" />
-    <Compile Include="src\Http\HttpMessage.cs" />
-    <Compile Include="src\Http\HttpRequest.cs" />
-    <Compile Include="src\Http\HttpResponse.cs" />
-    <Compile Include="src\Http\HttpServerBase.cs" />
-    <Compile Include="src\Http\Responsers\HttpRedirectResponser.cs" />
-    <Compile Include="src\Http\Responsers\HttpErrorResponser.cs" />
-    <Compile Include="src\Http\Responsers\HttpResourceResponser.cs" />
-    <Compile Include="src\Http\Responsers\HttpTextResponser.cs" />
-    <Compile Include="src\Http\Responsers\HttpResponser.cs" />
-    <Compile Include="src\Http\Router\Path2RegExp.cs" />
-    <Compile Include="src\Http\Streams\HttpStreamReadResult.cs" />
-    <Compile Include="src\Http\Streams\ChunkedReadStream.cs" />
-    <Compile Include="src\Http\Streams\ChunkedWriteStream.cs" />
-    <Compile Include="src\Http\Streams\HttpStream.cs" />
-    <Compile Include="src\Http\Streams\ContentedReadStream.cs" />
-    <Compile Include="src\Http\Streams\ContentedWriteStream.cs" />
-    <Compile Include="src\Http\Streams\MultipartReadStream.cs" />
-    <Compile Include="src\Http\Utils\BoyerMoore.cs" />
-    <Compile Include="src\Http\Utils\HttpHeaderProperty.cs" />
-    <Compile Include="src\Http\Utils\HttpMultipartFormDataParser.cs" />
-    <Compile Include="src\Http\Utils\HttpHeaderException.cs" />
-    <Compile Include="src\Http\Utils\HttpResponseException.cs" />
-    <Compile Include="src\Http\Utils\HttpStatus.cs" />
-    <Compile Include="src\Http\Utils\HttpUtility.cs" />
-    <Compile Include="src\Http\Utils\MimeTypes.cs" />
-    <Compile Include="src\StreamUtils.cs" />
-    <Compile Include="src\WebSocket\Frame.cs" />
-    <Compile Include="src\WebSocket\FrameReadStream.cs" />
-    <Compile Include="src\WebSocket\Frames\CloseFrame.cs" />
-    <Compile Include="src\WebSocket\Frames\PingFrame.cs" />
-    <Compile Include="src\WebSocket\Frames\PongFrame.cs" />
-    <Compile Include="src\WebSocket\Frames\TextFrame.cs" />
-    <Compile Include="src\WebSocket\FrameWriteStream.cs" />
-    <Compile Include="src\WebSocket\Messager.cs" />
-    <Compile Include="src\WebSocket\MultipartFrameReadStream.cs" />
-    <Compile Include="src\WebSocket\ProtocolUtils.cs" />
-    <Compile Include="src\core\TcpIocpServer.cs" />
-    <Compile Include="src\core\TcpSocketEventargs.cs" />
-  </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net462;net50;</TargetFrameworks>
+		<OutputType>Library</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<NoWarn>1701;1702;CS0649;CS8602;CS8618;CS8604;CS8632;SYSLIB0003;SYSLIB0004</NoWarn>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+		<OutputPath>.\bin\Debug</OutputPath>
+		<DefineConstants>TRACE;DEBUG;</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+		<OutputPath>.\bin\Release</OutputPath>
+		<DefineConstants>TRACE;</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net462'">
+		<DefineConstants>NET461;FW</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net50'">
+		<DefineConstants>NET5</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Remove="src\core\**" />
+	  <EmbeddedResource Remove="src\core\**" />
+	  <None Remove="src\core\**" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Remove="src\StreamUtils.cs" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Remove=".gitignore" />
+	  <None Remove="README.md" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\iocp-sharp-core\IocpSharpCore.csproj" />
+	</ItemGroup>
 </Project>
