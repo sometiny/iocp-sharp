@@ -119,7 +119,7 @@ namespace IocpSharp.Http
                 string connection = Connection;
                 string upgrade = Upgrade;
                 return !string.IsNullOrEmpty(connection) 
-                    && connection.Contains("upgrade") 
+                    && connection.ToLower().Contains("upgrade") 
                     && !string.IsNullOrEmpty(upgrade) 
                     && upgrade.ToLower() == "websocket";
             }
