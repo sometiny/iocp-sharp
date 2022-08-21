@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Net;
 
 namespace IocpSharp.Http.Streams
 {
@@ -57,15 +58,30 @@ namespace IocpSharp.Http.Streams
     /// <summary>
     /// 实现一个对HTTP消息读取的流
     /// </summary>
-    public class HttpStream : Stream, ISocketBasedStream
+    public class HttpStream : Stream
     {
         private Stream _innerStream = null;
         private bool _leaveInnerStreamOpen = true;
         private int _capturedMessage = 0;
+        private EndPoint _localEndPoint = null;
+        private EndPoint _remoteEndPoint = null;
+        public EndPoint LocalEndPoint => _localEndPoint;
+        public EndPoint RemoteEndPoint => _remoteEndPoint;
 
         internal int CapturedMessage => _capturedMessage;
 
-        public Socket BaseSocket => (_innerStream as ISocketBasedStream).BaseSocket;
+        /// <summary>
+        /// 使用基础流和模式创建实例
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="leaveInnerStreamOpen"></param>
+        public HttpStream(Stream stream, bool leaveInnerStreamOpen, EndPoint localEndPoint, EndPoint remoteEndPoint)
+        {
+            _localEndPoint = localEndPoint;
+            _remoteEndPoint = remoteEndPoint;
+            _innerStream = stream;
+            _leaveInnerStreamOpen = leaveInnerStreamOpen;
+        }
 
         /// <summary>
         /// 使用基础流和模式创建实例

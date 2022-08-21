@@ -12,6 +12,10 @@ using System.IO.Compression;
 using IocpSharp.Server;
 using IocpSharp.Http.Utils;
 using IocpSharp.WebSocket;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
+using System.Security.Authentication;
 
 namespace IocpSharp.Http
 {
@@ -19,6 +23,9 @@ namespace IocpSharp.Http
     public class HttpServerBase : TcpIocpServer
     {
         private static int MaxRequestPerConnection = 20;
+        private bool _enableSSL = false;
+        private X509Certificate certificate;
+
         //结束包内容
         internal static byte[] _endingChunk = Encoding.ASCII.GetBytes("0\r\n\r\n");
 
@@ -27,6 +34,8 @@ namespace IocpSharp.Http
 
         public string WebRoot { get => _webRoot; set => _webRoot = value; }
         public static string UplaodTempDir { get => _uplaodTempDir; set => _uplaodTempDir = value; }
+        public bool EnableSSL { get => _enableSSL; set => _enableSSL = value; }
+        public X509Certificate Certificate { get => certificate; set => certificate = value; }
 
         //后面的代码可能会越来越复杂，我们做个简单的路由功能
         //可以开发功能更强大的路由
@@ -190,11 +199,66 @@ namespace IocpSharp.Http
         /// <param name="client"></param>
         protected override void NewClient(Socket client)
         {
-            HttpStream stream = new HttpStream(new BufferedNetworkStream(client, true), false);
+            StartCreateHttpStream(new BufferedNetworkStream(client, true), client.LocalEndPoint, client.RemoteEndPoint);
+        }
 
+        /// <summary>
+        /// 捕获HTTP请求
+        /// </summary>
+        /// <param name="stream"></param>
+        protected virtual void StartCreateHttpStream(Stream baseStream, EndPoint localEndPoint, EndPoint remoteEndPoint)
+        {
+            if (!_enableSSL)
+            {
+
+                CaptureHttpRequest(baseStream, localEndPoint, remoteEndPoint);
+                return;
+            }
+
+            if (certificate == null)
+            {
+                baseStream.Close();
+                return;
+            }
+            SslStream sslStream = new(baseStream, false, remoteCertificateValidtionCallback, localCertificateSelectionCallback);
+            sslStream.AuthenticateAsServerAsync(certificate, false, SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12, false).ContinueWith((task, state) =>
+            {
+                SslStream sslStream = state as SslStream;
+                if (task.Exception != null)
+                {
+                    sslStream.Close();
+                    return;
+                }
+
+                CaptureHttpRequest(sslStream, localEndPoint, remoteEndPoint);
+            }, sslStream);
+        }
+        /// <summary>
+        /// 捕获HTTP请求
+        /// </summary>
+        /// <param name="stream"></param>
+        protected virtual void CaptureHttpRequest(Stream baseStream, EndPoint localEndPoint, EndPoint remoteEndPoint)
+        {
+            HttpStream stream = new HttpStream(baseStream, false, localEndPoint, remoteEndPoint);
             stream.Capture<HttpRequest>(AfterReceiveHttpMessage, null);
         }
 
+        private bool remoteCertificateValidtionCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => true;
+        private X509Certificate localCertificateSelectionCallback(object sender, string targetHost, X509CertificateCollection certificates, X509Certificate remoteCertificate, string[] acceptableIssuers)
+        {
+            return SelectCertificate(targetHost, certificates, remoteCertificate, acceptableIssuers);
+        }
+
+        /// <summary>
+        /// SSL选择服务器证书，targetHost启用SNI
+        /// </summary>
+        /// <param name="targetHost"></param>
+        /// <param name="certificates"></param>
+        /// <param name="remoteCertificate"></param>
+        /// <param name="acceptableIssuers"></param>
+        /// <returns></returns>
+        protected virtual X509Certificate SelectCertificate(string targetHost, X509CertificateCollection certificates, X509Certificate remoteCertificate, string[] acceptableIssuers)
+            => certificates[0];
         /// <summary>
         /// 发送服务器资源，这里简单处理下。
         /// 必要的情况下可以作缓存处理
